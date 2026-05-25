@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { gerarPDFEsboco } from "./pdfExport.js";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    THEMES — 5 estilos visuais de slides
@@ -213,37 +214,132 @@ function HistoryPanel({ onLoad, onClose }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   SHARE MODAL
+   SHARE MODAL — com geração de PDF via jsPDF
 ───────────────────────────────────────────────────────────────────────────── */
 function ShareModal({ data, input, onClose }) {
   const [copied, setCopied] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfReady, setPdfReady] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState(null);
+  const [pdfFileName, setPdfFileName] = useState("");
 
   const shareText = `✦ *${data.tituloFormatado}*\n📖 ${input.referencia}\n\n${data.pontosPrincipais.map((p, i) => `*${i + 1}. ${p.titulo}*\n${p.frasePrincipal}`).join("\n\n")}\n\n_Criado com SermonStudio AI_`;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(shareText).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+    navigator.clipboard.writeText(shareText).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500); });
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsAppText = () => {
     window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank");
   };
 
+  const handleGeneratePDF = async () => {
+    setPdfLoading(true);
+    try {
+      await new Promise(r => setTimeout(r, 80)); // allow UI update
+      const doc = gerarPDFEsboco(data, input);
+      const blob = doc.output("blob");
+      const fileName = `${data.tituloFormatado.replace(/[^a-zA-Z0-9\u00C0-\u024F\s]/g, "").trim().slice(0, 40)}.pdf`;
+      setPdfBlob(blob);
+      setPdfFileName(fileName);
+      setPdfReady(true);
+    } catch (err) {
+      console.error("PDF error:", err);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!pdfBlob) return;
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    a.href = url; a.download = pdfFileName;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const handleWhatsAppPDF = () => {
+    // 1. Baixa o PDF
+    handleDownloadPDF();
+    // 2. Após 1s abre o WhatsApp com mensagem orientando a anexar
+    setTimeout(() => {
+      const msg = `✦ *${data.tituloFormatado}*\n📖 ${input.referencia}\n\n📄 Segue o esboço completo em PDF (arquivo baixado no seu celular).\n\n_Criado com SermonStudio AI_`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    }, 1000);
+  };
+
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }} onClick={onClose}>
-      <div style={{ background: "white", borderRadius: 18, width: "100%", maxWidth: 500, padding: "28px 24px" }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }} onClick={onClose}>
+      <div style={{ background: "white", borderRadius: 18, width: "100%", maxWidth: 520, padding: "28px 24px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.4rem", fontWeight: 700, color: "#1a2744" }}>Compartilhar Sermão</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem", color: "#9b9690" }}>✕</button>
         </div>
-        <textarea readOnly style={{ width: "100%", background: "#f9f7f3", border: "1px solid #e5e0d5", borderRadius: 8, padding: "14px", fontFamily: "monospace", fontSize: ".8rem", lineHeight: 1.7, color: "#374151", resize: "none", height: 200 }} value={shareText} />
-        <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
-          <button onClick={handleWhatsApp} style={{ flex: 1, background: "#25d366", color: "white", border: "none", borderRadius: 9, padding: "12px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            💬 Enviar no WhatsApp
-          </button>
-          <button onClick={handleCopy} style={{ flex: 1, background: copied ? "#1a2744" : "#f9f7f3", color: copied ? "#c9a84c" : "#374151", border: "1px solid #e5e0d5", borderRadius: 9, padding: "12px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer" }}>
-            {copied ? "✓ Copiado!" : "📋 Copiar Texto"}
-          </button>
+
+        {/* ── SEÇÃO PDF ── */}
+        <div style={{ background: "#f9f7f3", border: "1px solid #e5e0d5", borderRadius: 12, padding: "18px", marginBottom: 16 }}>
+          <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>📄 Exportar como PDF</p>
+
+          {!pdfReady ? (
+            <button
+              onClick={handleGeneratePDF}
+              disabled={pdfLoading}
+              style={{ width: "100%", background: "#1a2744", color: "#f5f0e8", border: "none", borderRadius: 9, padding: "13px", fontWeight: 700, fontSize: ".88rem", cursor: pdfLoading ? "not-allowed" : "pointer", opacity: pdfLoading ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontFamily: "'Source Sans 3',sans-serif" }}
+            >
+              {pdfLoading ? (
+                <><span style={{ display: "inline-block", width: 16, height: 16, border: "2px solid #c9a84c", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> Gerando PDF...</>
+              ) : (
+                <><span style={{ color: "#c9a84c" }}>⬇</span> Gerar PDF do Esboço</>
+              )}
+            </button>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Success badge */}
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: "1.2rem" }}>✅</span>
+                <div>
+                  <p style={{ fontWeight: 700, fontSize: ".82rem", color: "#166534" }}>PDF pronto!</p>
+                  <p style={{ fontSize: ".72rem", color: "#4ade80aa", color: "#15803d" }}>{pdfFileName}</p>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <button onClick={handleDownloadPDF} style={{ background: "#1a2744", color: "#f5f0e8", border: "none", borderRadius: 9, padding: "11px", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+                  ⬇ Baixar PDF
+                </button>
+                <button onClick={handleWhatsAppPDF} style={{ background: "#25d366", color: "white", border: "none", borderRadius: 9, padding: "11px", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+                  💬 PDF + WhatsApp
+                </button>
+              </div>
+
+              <p style={{ fontSize: ".72rem", color: "#b0aba2", textAlign: "center", fontStyle: "italic", lineHeight: 1.5 }}>
+                "PDF + WhatsApp" baixa o arquivo e abre o WhatsApp com uma mensagem pronta. Você só anexa o PDF e envia! 📎
+              </p>
+
+              <button onClick={() => { setPdfReady(false); setPdfBlob(null); }} style={{ background: "none", border: "1px solid #e5e0d5", borderRadius: 7, padding: "7px", fontSize: ".75rem", color: "#9b9690", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+                Gerar novamente
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* ── SEÇÃO TEXTO ── */}
+        <div style={{ background: "#f9f7f3", border: "1px solid #e5e0d5", borderRadius: 12, padding: "18px" }}>
+          <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>💬 Compartilhar como Texto</p>
+          <textarea readOnly style={{ width: "100%", background: "white", border: "1px solid #e5e0d5", borderRadius: 8, padding: "12px", fontFamily: "monospace", fontSize: ".78rem", lineHeight: 1.7, color: "#374151", resize: "none", height: 150 }} value={shareText} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+            <button onClick={handleWhatsAppText} style={{ background: "#25d366", color: "white", border: "none", borderRadius: 9, padding: "11px", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+              💬 WhatsApp
+            </button>
+            <button onClick={handleCopy} style={{ background: copied ? "#1a2744" : "white", color: copied ? "#c9a84c" : "#374151", border: "1px solid #e5e0d5", borderRadius: 9, padding: "11px", fontWeight: 700, fontSize: ".82rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", transition: "all .2s" }}>
+              {copied ? "✓ Copiado!" : "📋 Copiar"}
+            </button>
+          </div>
+        </div>
+
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </div>
   );
