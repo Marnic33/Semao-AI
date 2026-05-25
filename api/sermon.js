@@ -16,7 +16,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Erro ao ler body: " + e.message });
   }
 
-  // Modelos atuais 2025/2026
   const models = [
     "claude-haiku-4-5-20251001",
     "claude-sonnet-4-5",
@@ -36,7 +35,11 @@ export default async function handler(req, res) {
           "x-api-key": apiKey.trim(),
           "anthropic-version": "2023-06-01",
         },
-        body: JSON.stringify({ model, max_tokens: 4000, messages }),
+        body: JSON.stringify({
+          model,
+          max_tokens: 8000, // aumentado para evitar corte
+          messages,
+        }),
       });
 
       const text = await resp.text();
@@ -53,7 +56,6 @@ export default async function handler(req, res) {
       const errMsg = data?.error?.message || data?.error?.type || text.slice(0, 150);
       erros[model] = `${resp.status}: ${errMsg}`;
 
-      // Se for erro de auth ou crédito, para imediatamente
       if (resp.status === 401 || resp.status === 403 || resp.status === 429) {
         return res.status(resp.status).json({ error: errMsg });
       }
@@ -63,7 +65,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(503).json({
-    error: JSON.stringify(erros),
-  });
+  return res.status(503).json({ error: JSON.stringify(erros) });
 }
