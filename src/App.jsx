@@ -346,6 +346,170 @@ function ShareModal({ data, input, onClose }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   SUGGESTION MODAL — IA sugere temas de sermão
+───────────────────────────────────────────────────────────────────────────── */
+const OCASIOES = [
+  "Domingo comum", "Ano Novo", "Páscoa", "Dia das Mães", "Dia dos Pais",
+  "Pentecostes", "Natal", "Semana Santa", "Culto de Jovens", "Culto Evangelístico",
+  "Retiro Espiritual", "Aniversário da Igreja", "Culto de Ceia", "Missões",
+];
+
+function SuggestionModal({ onSelect, onClose }) {
+  const [contexto, setContexto] = useState("");
+  const [ocasiao, setOcasiao] = useState("");
+  const [publico, setPublico] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sugestoes, setSugestoes] = useState([]);
+  const [error, setError] = useState("");
+
+  const handleGerar = async () => {
+    setLoading(true); setError(""); setSugestoes([]);
+    const prompt = `Você é um assessor ministerial experiente. Sugira 6 temas de sermão em JSON puro (sem markdown, sem texto fora do JSON).
+
+Contexto informado pelo pregador:
+- Ocasião/Data: ${ocasiao || "Domingo regular"}
+- Público-alvo: ${publico || "Igreja Geral"}
+- Contexto extra: ${contexto || "Nenhum contexto adicional"}
+
+Retorne APENAS este JSON com 6 sugestões variadas e relevantes:
+[
+  {
+    "tema": "Título criativo e impactante do sermão",
+    "referencia": "Livro Cap:vers-vers",
+    "objetivo": "Objetivo claro da mensagem (máx 6 palavras)",
+    "publicoTom": "Público - Tom",
+    "justificativa": "Por que esta mensagem é relevante para este contexto (1 frase curta)"
+  }
+]
+
+Varie os estilos: inclua temas doutrinários, narrativos, práticos e de apelo. APENAS JSON.`;
+
+    try {
+      const resp = await fetch("/api/sermon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ max_tokens: 2000, messages: [{ role: "user", content: prompt }] }),
+      });
+      const apiData = await resp.json();
+      if (!resp.ok || apiData.error) throw new Error(apiData.error?.message || apiData.error || "Erro na API");
+      const raw = apiData.content?.filter(b => b.type === "text").map(b => b.text).join("") || "";
+      const clean = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+      const parsed = JSON.parse(clean);
+      setSugestoes(Array.isArray(parsed) ? parsed : parsed.sugestoes || []);
+    } catch (e) {
+      setError("Erro ao gerar sugestões. Tente novamente.");
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={onClose}>
+      <div style={{ background: "white", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 700, maxHeight: "90vh", overflowY: "auto", padding: "28px 24px 40px" }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.6rem", fontWeight: 700, color: "#1a2744", marginBottom: 4 }}>✦ Sugestões de Pregação</h2>
+            <p style={{ fontSize: ".8rem", color: "#9b9690", lineHeight: 1.5 }}>A IA sugere temas relevantes baseados no seu contexto ministerial.</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.4rem", color: "#9b9690", flexShrink: 0, marginTop: 4 }}>✕</button>
+        </div>
+
+        {/* Filtros */}
+        {sugestoes.length === 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+            {/* Ocasião chips */}
+            <div>
+              <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Ocasião / Data Especial</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                {OCASIOES.map(oc => (
+                  <button key={oc} onClick={() => setOcasiao(o => o === oc ? "" : oc)}
+                    style={{ padding: "5px 12px", borderRadius: 20, fontSize: ".75rem", fontWeight: 600, cursor: "pointer", border: "1.5px solid", transition: "all .15s", background: ocasiao === oc ? "#1a2744" : "white", color: ocasiao === oc ? "#c9a84c" : "#8b8680", borderColor: ocasiao === oc ? "#1a2744" : "#e2ddd5", fontFamily: "'Source Sans 3',sans-serif" }}>
+                    {oc}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Público */}
+            <div>
+              <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Público-Alvo</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                {["Igreja Geral", "Jovens", "Crianças", "Casais", "Liderança", "Evangelístico", "Pequeno Grupo"].map(p => (
+                  <button key={p} onClick={() => setPublico(v => v === p ? "" : p)}
+                    style={{ padding: "5px 12px", borderRadius: 20, fontSize: ".75rem", fontWeight: 600, cursor: "pointer", border: "1.5px solid", transition: "all .15s", background: publico === p ? "#c9a84c" : "white", color: publico === p ? "#1a2744" : "#8b8680", borderColor: publico === p ? "#c9a84c" : "#e2ddd5", fontFamily: "'Source Sans 3',sans-serif" }}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Contexto livre */}
+            <div>
+              <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Contexto Adicional <span style={{ fontWeight: 400, color: "#b0aba2", textTransform: "none" }}>(opcional)</span></p>
+              <textarea
+                style={{ width: "100%", background: "#f9f7f3", border: "1.5px solid #e2ddd5", borderRadius: 8, padding: "10px 13px", fontFamily: "'Source Sans 3',sans-serif", fontSize: ".85rem", color: "#1a2744", resize: "none", lineHeight: 1.6, outline: "none" }}
+                rows={2}
+                placeholder="Ex: A igreja está passando por um momento difícil, precisamos de mensagens de encorajamento..."
+                value={contexto}
+                onChange={e => setContexto(e.target.value)}
+              />
+            </div>
+
+            {error && <p style={{ fontSize: ".82rem", color: "#b91c1c", background: "#fef2f2", padding: "10px 14px", borderRadius: 7, border: "1px solid #fecaca" }}>{error}</p>}
+
+            <button onClick={handleGerar} disabled={loading}
+              style={{ width: "100%", background: "#1a2744", color: "#f5f0e8", border: "none", borderRadius: 9, padding: "13px", fontWeight: 700, fontSize: ".85rem", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontFamily: "'Source Sans 3',sans-serif", letterSpacing: ".05em" }}>
+              {loading
+                ? <><span style={{ display: "inline-block", width: 16, height: 16, border: "2px solid #c9a84c", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> Consultando a IA...</>
+                : <><span style={{ color: "#c9a84c", fontSize: "1rem" }}>✦</span> Gerar 6 Sugestões com IA</>}
+            </button>
+          </div>
+        )}
+
+        {/* Sugestões geradas */}
+        {sugestoes.length > 0 && (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: ".08em" }}>✦ {sugestoes.length} Sugestões Geradas — Clique para usar</p>
+              <button onClick={() => setSugestoes([])} style={{ background: "none", border: "1px solid #e5e0d5", borderRadius: 6, padding: "4px 10px", fontSize: ".72rem", color: "#9b9690", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>Nova busca</button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {sugestoes.map((s, i) => (
+                <button key={i} onClick={() => { onSelect({ tema: s.tema, referencia: s.referencia, objetivo: s.objetivo, publicoTom: s.publicoTom }); onClose(); }}
+                  style={{ width: "100%", text: "left", background: "#f9f7f3", border: "1.5px solid #e5e0d5", borderRadius: 12, padding: "16px 18px", cursor: "pointer", textAlign: "left", transition: "all .15s", fontFamily: "'Source Sans 3',sans-serif" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.background = "#faf8f3"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e0d5"; e.currentTarget.style.background = "#f9f7f3"; }}>
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <div style={{ width: 32, height: 32, background: "#1a2744", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#c9a84c", fontSize: ".8rem", fontWeight: 700, flexShrink: 0, marginTop: 2 }}>{i + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.05rem", fontWeight: 700, color: "#1a2744", marginBottom: 4, lineHeight: 1.3 }}>{s.tema}</p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                        <span style={{ background: "#1a2744", color: "#c9a84c", fontSize: ".68rem", fontWeight: 700, padding: "2px 8px", borderRadius: 20 }}>📖 {s.referencia}</span>
+                        {s.publicoTom && <span style={{ background: "#f0ece0", color: "#8b8680", fontSize: ".68rem", padding: "2px 8px", borderRadius: 20 }}>{s.publicoTom}</span>}
+                        {s.objetivo && <span style={{ background: "#f0ece0", color: "#8b8680", fontSize: ".68rem", padding: "2px 8px", borderRadius: 20 }}>{s.objetivo}</span>}
+                      </div>
+                      {s.justificativa && <p style={{ fontSize: ".78rem", color: "#9b9690", fontStyle: "italic", lineHeight: 1.5 }}>{s.justificativa}</p>}
+                    </div>
+                    <div style={{ color: "#c9a84c", fontSize: "1rem", flexShrink: 0, marginTop: 4 }}>→</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <p style={{ marginTop: 14, fontSize: ".75rem", color: "#b0aba2", textAlign: "center", fontStyle: "italic" }}>
+              Clique em qualquer sugestão para preencher o painel automaticamente
+            </p>
+          </div>
+        )}
+
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    MAIN APP
 ───────────────────────────────────────────────────────────────────────────── */
 export default function SermonStudio() {
@@ -362,6 +526,7 @@ export default function SermonStudio() {
   const [slideTheme, setSlideTheme] = useState("tradicional");
   const [showHistory, setShowHistory] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const loadingMsgRef = useRef(null);
 
   const data = editedData || sermonData;
@@ -499,6 +664,7 @@ RESPONDA APENAS COM O JSON.`;
       {/* ── MODALS ── */}
       {showHistory && <HistoryPanel onLoad={handleLoadFromHistory} onClose={() => setShowHistory(false)} />}
       {showShare && data && <ShareModal data={data} input={input} onClose={() => setShowShare(false)} />}
+      {showSuggestions && <SuggestionModal onSelect={s => { setInput(s); setShowSuggestions(false); }} onClose={() => setShowSuggestions(false)} />}
 
       {/* ── HEADER ── */}
       <header style={{ background: "#1a2744", color: "#f5f0e8", padding: "0 32px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 2px 20px rgba(0,0,0,.25)" }}>
@@ -567,7 +733,14 @@ RESPONDA APENAS COM O JSON.`;
               {loading ? (<><span style={{ display: "flex", gap: 4 }}>{[0,1,2].map(i => <span key={i} className="pulse-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "#c9a84c", display: "block", animationDelay: `${i*.2}s` }} />)}</span><span style={{ color: "#c9a84c" }}>{loadingMsg}</span></>) : (<><span style={{ color: "#c9a84c" }}>✦</span> Gerar Sermão com IA</>)}
             </button>
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid #f0ece0" }}>
-              <p className="ss-label" style={{ marginBottom: 10 }}>Exemplos Rápidos</p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <p className="ss-label" style={{ marginBottom: 0 }}>Exemplos Rápidos</p>
+                <button
+                  onClick={() => setShowSuggestions(true)}
+                  style={{ background: "linear-gradient(135deg,#1a2744,#22305c)", color: "#c9a84c", border: "1px solid rgba(201,168,76,.3)", borderRadius: 20, padding: "5px 12px", fontSize: ".7rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, fontFamily: "'Source Sans 3',sans-serif", letterSpacing: ".04em" }}>
+                  <span style={{ fontSize: ".85rem" }}>✦</span> Sugerir com IA
+                </button>
+              </div>
               {QUICK_EXAMPLES.map((ex, i) => (
                 <button key={i} className="quick-ex-btn" onClick={() => setInput(ex)} style={{ marginBottom: 6, display: "block" }}>
                   <span style={{ color: "#c9a84c", marginRight: 6 }}>→</span>
@@ -575,6 +748,13 @@ RESPONDA APENAS COM O JSON.`;
                   <span style={{ marginLeft: 18, fontSize: ".72rem", color: "#b0aba2" }}>{ex.referencia} · {ex.publicoTom}</span>
                 </button>
               ))}
+              <button
+                onClick={() => setShowSuggestions(true)}
+                style={{ width: "100%", marginTop: 4, background: "none", border: "1.5px dashed #e2ddd5", borderRadius: 8, padding: "9px", fontSize: ".78rem", color: "#c9a84c", cursor: "pointer", fontWeight: 600, fontFamily: "'Source Sans 3',sans-serif", transition: "all .15s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.background = "#faf8f3"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2ddd5"; e.currentTarget.style.background = "none"; }}>
+                ✦ Gerar mais sugestões com IA...
+              </button>
             </div>
           </div>
         </aside>
