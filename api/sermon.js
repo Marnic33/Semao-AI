@@ -8,24 +8,22 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "ANTHROPIC_API_KEY não configurada." });
   }
 
-  // Parse body manually if needed
   let body = req.body;
   if (typeof body === "string") {
-    try { body = JSON.parse(body); } catch {}
-  }
-  if (!body || typeof body !== "object") {
-    return res.status(400).json({ error: "Body inválido." });
+    try { body = JSON.parse(body); } catch(e) {
+      return res.status(400).json({ error: "Falha ao parsear body: " + e.message });
+    }
   }
 
-  // Force a known working model
   const payload = {
-    model: "claude-3-haiku-20240307",
-    max_tokens: body.max_tokens || 4000,
-    messages: body.messages || [],
+    model: "claude-3-5-haiku-20241022",
+    max_tokens: 4000,
+    messages: body?.messages || [],
   };
 
+  let response, text, data;
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -35,15 +33,24 @@ export default async function handler(req, res) {
       body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
+    text = await response.text();
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Response não é JSON — retorna o texto bruto para diagnóstico
+      return res.status(response.status).json({
+        error: `HTTP ${response.status} — Resposta não-JSON da Anthropic: ${text.slice(0, 300)}`
+      });
+    }
 
     if (!response.ok) {
-      const msg = data?.error?.message || JSON.stringify(data);
-      return res.status(response.status).json({ error: msg });
+      const msg = data?.error?.message || data?.error?.type || JSON.stringify(data);
+      return res.status(response.status).json({ error: `Anthropic ${response.status}: ${msg}` });
     }
 
     return res.status(200).json(data);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: "Erro de rede: " + err.message });
   }
 }
