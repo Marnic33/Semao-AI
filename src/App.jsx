@@ -600,7 +600,7 @@ Dados do sermão:
 RESPONDA APENAS COM O JSON. Nenhum texto adicional.`;
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/api/sermon", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
