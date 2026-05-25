@@ -16,13 +16,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Erro ao ler body: " + e.message });
   }
 
-  // Lista de modelos para tentar em ordem
+  // Modelos atuais 2025/2026
   const models = [
-    "claude-3-5-haiku-20241022",
-    "claude-3-haiku-20240307",
-    "claude-3-5-sonnet-20240620",
-    "claude-3-sonnet-20240229",
-    "claude-3-opus-20240229",
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4-6",
+    "claude-opus-4-5",
+    "claude-opus-4-6",
   ];
 
   const erros = {};
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": apiKey,
+          "x-api-key": apiKey.trim(),
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({ model, max_tokens: 4000, messages }),
@@ -46,21 +46,16 @@ export default async function handler(req, res) {
         continue;
       }
 
-      // Sucesso!
       if (resp.ok) {
         return res.status(200).json(data);
       }
 
-      // Guarda o erro e tenta próximo
       const errMsg = data?.error?.message || data?.error?.type || text.slice(0, 150);
       erros[model] = `${resp.status}: ${errMsg}`;
 
-      // Se não for 404 (modelo não encontrado), para aqui
-      if (resp.status !== 404) {
-        return res.status(resp.status).json({
-          error: errMsg,
-          model_tentado: model,
-        });
+      // Se for erro de auth ou crédito, para imediatamente
+      if (resp.status === 401 || resp.status === 403 || resp.status === 429) {
+        return res.status(resp.status).json({ error: errMsg });
       }
 
     } catch (err) {
@@ -68,9 +63,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // Nenhum modelo funcionou
   return res.status(503).json({
-    error: "Nenhum modelo disponível. Detalhes:",
-    erros_por_modelo: erros,
+    error: JSON.stringify(erros),
   });
 }
