@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { gerarPDFEsboco } from "./pdfExport.js";
+import { gerarPPTX } from "./pptxExport.js";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    THEMES — 5 estilos visuais de slides
@@ -802,6 +803,8 @@ RESPONDA APENAS COM O JSON.`;
     setSlides(newSlides); setSlideIndex(0); setActiveTab("detalhado");
   };
 
+  const [pptxLoading, setPptxLoading] = useState(false);
+
   const handleExportOutline = () => {
     if (!data) return;
     const html = buildOutlineExportHtml(data, input);
@@ -816,6 +819,18 @@ RESPONDA APENAS COM O JSON.`;
     const win = window.open("", "_blank"); if (!win) return;
     win.document.write(html); win.document.close();
     setTimeout(() => win.print(), 600);
+  };
+
+  const handleExportPPTX = async () => {
+    if (!data || pptxLoading) return;
+    setPptxLoading(true);
+    try {
+      await gerarPPTX(data, input, slideTheme);
+    } catch (err) {
+      console.error("PPTX error:", err);
+    } finally {
+      setPptxLoading(false);
+    }
   };
 
   const updateSlide = (updated) => setEditedSlides(ss => ss.map((s, i) => i === slideIndex ? updated : s));
@@ -888,7 +903,15 @@ RESPONDA APENAS COM O JSON.`;
                 💬 Compartilhar
               </button>
               <button className="ss-btn-gold" onClick={handleExportOutline} style={{ padding: "8px 16px", fontSize: ".78rem" }}>⬇ Esboço PDF</button>
-              <button className="ss-btn-primary" onClick={handleExportSlides} style={{ padding: "8px 16px", fontSize: ".78rem", border: "1px solid rgba(201,168,76,.25)" }}>▦ Slides</button>
+              <button
+                className="ss-btn-primary"
+                onClick={handleExportPPTX}
+                disabled={pptxLoading}
+                style={{ padding: "8px 16px", fontSize: ".78rem", border: "1px solid rgba(201,168,76,.25)", display: "flex", alignItems: "center", gap: 7 }}>
+                {pptxLoading
+                  ? <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #c9a84c", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> Gerando...</>
+                  : <>📊 Baixar .pptx</>}
+              </button>
             </>)}
           </div>
         </div>
@@ -1083,6 +1106,14 @@ RESPONDA APENAS COM O JSON.`;
                       </button>
                     ))}
                     <span style={{ marginLeft: "auto", fontSize: ".75rem", color: "#b0aba2" }}>{slideIndex + 1} / {currentSlides.length}</span>
+                    <button
+                      onClick={handleExportPPTX}
+                      disabled={pptxLoading}
+                      style={{ background: "#1a2744", color: "#c9a84c", border: "1px solid rgba(201,168,76,.3)", borderRadius: 7, padding: "5px 12px", fontSize: ".72rem", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "'Source Sans 3',sans-serif", opacity: pptxLoading ? 0.6 : 1 }}>
+                      {pptxLoading
+                        ? <><span style={{ display: "inline-block", width: 10, height: 10, border: "1.5px solid #c9a84c", borderTop: "1.5px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> Gerando...</>
+                        : <>📊 Baixar .pptx</>}
+                    </button>
                   </div>
                   <SlideViewer slide={currentSlides[slideIndex]} theme={slideTheme} onChange={updateSlide} />
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
