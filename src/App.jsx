@@ -354,7 +354,7 @@ const OCASIOES = [
   "Retiro Espiritual", "Aniversário da Igreja", "Culto de Ceia", "Missões",
 ];
 
-function SuggestionModal({ onSelect, onClose }) {
+function SuggestionModal({ userEmail = "", onSelect, onClose }) {
   const [contexto, setContexto] = useState("");
   const [ocasiao, setOcasiao] = useState("");
   const [publico, setPublico] = useState("");
@@ -388,7 +388,7 @@ Varie os estilos: inclua temas doutrinários, narrativos, práticos e de apelo. 
       const resp = await fetch("/api/sermon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ max_tokens: 2000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ user_email: userEmail, max_tokens: 2000, messages: [{ role: "user", content: prompt }] }),
       });
       const apiData = await resp.json();
       if (!resp.ok || apiData.error) throw new Error(apiData.error?.message || apiData.error || "Erro na API");
@@ -512,7 +512,7 @@ Varie os estilos: inclua temas doutrinários, narrativos, práticos e de apelo. 
 /* ─────────────────────────────────────────────────────────────────────────────
    MAIN APP
 ───────────────────────────────────────────────────────────────────────────── */
-export default function SermonStudio() {
+export default function SermonStudio({ userEmail = "", onLogout }) {
   const [input, setInput] = useState({ tema: "", referencia: "", objetivo: "", publicoTom: "" });
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState("Iniciando...");
@@ -572,7 +572,7 @@ RESPONDA APENAS COM O JSON.`;
       const response = await fetch("/api/sermon", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+        body: JSON.stringify({ user_email: userEmail, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
       });
       const apiData = await response.json();
       if (!response.ok || apiData.error) throw new Error(apiData.error?.message || apiData.error || `HTTP ${response.status}`);
@@ -664,7 +664,7 @@ RESPONDA APENAS COM O JSON.`;
       {/* ── MODALS ── */}
       {showHistory && <HistoryPanel onLoad={handleLoadFromHistory} onClose={() => setShowHistory(false)} />}
       {showShare && data && <ShareModal data={data} input={input} onClose={() => setShowShare(false)} />}
-      {showSuggestions && <SuggestionModal onSelect={s => { setInput(s); setShowSuggestions(false); }} onClose={() => setShowSuggestions(false)} />}
+      {showSuggestions && <SuggestionModal userEmail={userEmail} onSelect={s => { setInput(s); setShowSuggestions(false); }} onClose={() => setShowSuggestions(false)} />}
 
       {/* ── HEADER ── */}
       <header style={{ background: "#1a2744", color: "#f5f0e8", padding: "0 32px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 2px 20px rgba(0,0,0,.25)" }}>
@@ -677,6 +677,14 @@ RESPONDA APENAS COM O JSON.`;
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {/* User badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "5px 12px" }}>
+              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".65rem", fontWeight: 700, color: "#1a2744", flexShrink: 0 }}>
+                {userEmail.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontSize: ".72rem", color: "rgba(201,168,76,0.8)", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userEmail}</span>
+              <button onClick={onLogout} title="Sair" style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(201,168,76,0.5)", fontSize: ".75rem", padding: "0 2px", lineHeight: 1 }}>✕</button>
+            </div>
             <button className="ss-btn-outline" onClick={() => setShowHistory(true)} style={{ padding: "7px 14px", fontSize: ".78rem", display: "flex", alignItems: "center", gap: 6, color: "#c9a84c", borderColor: "rgba(201,168,76,.3)", background: "transparent" }}>
               📚 Histórico
             </button>
