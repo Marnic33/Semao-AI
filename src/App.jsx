@@ -510,8 +510,203 @@ Varie os estilos: inclua temas doutrinários, narrativos, práticos e de apelo. 
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   MAIN APP
+   YOUTUBE VIDEOS SECTION
 ───────────────────────────────────────────────────────────────────────────── */
+function VideosSection({ tema, referencia, userEmail }) {
+  const [videos, setVideos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [activeVideo, setActiveVideo] = useState(null);
+  const [buscaCustom, setBuscaCustom] = useState("");
+  const [jaCarregou, setJaCarregou] = useState(false);
+
+  const buscarVideos = async (queryOverride) => {
+    setLoading(true); setError(""); setActiveVideo(null);
+    const query = queryOverride || `pregação ${tema} ${referencia} bíblia`;
+    try {
+      const resp = await fetch("/api/youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_email: userEmail, query }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Erro ao buscar vídeos");
+      setVideos(data.videos || []);
+      setJaCarregou(true);
+    } catch (e) {
+      setError(e.message);
+    } finally { setLoading(false); }
+  };
+
+  // Sugestões de busca pré-definidas baseadas no tema
+  const sugestoes = [
+    `pregação ${tema}`,
+    `estudo bíblico ${referencia}`,
+    `sermão ${tema} evangélico`,
+    `${referencia} explicação`,
+  ];
+
+  return (
+    <div style={{ padding: "24px 28px 32px" }}>
+
+      {/* Header da seção */}
+      <div style={{ marginBottom: 20 }}>
+        <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", fontWeight: 700, color: "#1a2744", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "1.1rem" }}>▶</span> Vídeos de Referência
+        </h3>
+        <p style={{ fontSize: ".8rem", color: "#9b9690", lineHeight: 1.5 }}>
+          Pregações e estudos relacionados ao tema <strong style={{ color: "#1a2744" }}>"{tema}"</strong> no YouTube.
+        </p>
+      </div>
+
+      {/* Busca customizada */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <input
+          style={{ flex: 1, background: "#f9f7f3", border: "1.5px solid #e2ddd5", borderRadius: 8, padding: "9px 13px", fontFamily: "'Source Sans 3',sans-serif", fontSize: ".85rem", color: "#1a2744", outline: "none", transition: "border-color .2s" }}
+          placeholder="Buscar outro tema no YouTube..."
+          value={buscaCustom}
+          onChange={e => setBuscaCustom(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && buscaCustom.trim() && buscarVideos(buscaCustom.trim())}
+          onFocus={e => e.target.style.borderColor = "#c9a84c"}
+          onBlur={e => e.target.style.borderColor = "#e2ddd5"}
+        />
+        <button
+          onClick={() => buscarVideos(buscaCustom.trim() || undefined)}
+          disabled={loading}
+          style={{ background: "#1a2744", color: "#c9a84c", border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, fontSize: ".8rem", cursor: "pointer", flexShrink: 0, fontFamily: "'Source Sans 3',sans-serif", opacity: loading ? 0.6 : 1 }}>
+          {loading ? "..." : "Buscar"}
+        </button>
+      </div>
+
+      {/* Sugestões rápidas */}
+      {!jaCarregou && (
+        <div style={{ marginBottom: 18 }}>
+          <p style={{ fontSize: ".7rem", fontWeight: 700, color: "#b0aba2", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Sugestões de busca</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+            {sugestoes.map((s, i) => (
+              <button key={i} onClick={() => buscarVideos(s)}
+                style={{ padding: "5px 12px", borderRadius: 20, fontSize: ".75rem", fontWeight: 600, cursor: "pointer", border: "1.5px solid #e2ddd5", background: "white", color: "#8b8680", fontFamily: "'Source Sans 3',sans-serif", transition: "all .15s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.color = "#1a2744"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e2ddd5"; e.currentTarget.style.color = "#8b8680"; }}>
+                🔍 {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Botão inicial */}
+      {!jaCarregou && !loading && (
+        <button onClick={() => buscarVideos()}
+          style={{ width: "100%", background: "linear-gradient(135deg,#1a2744,#22305c)", color: "#f5f0e8", border: "none", borderRadius: 10, padding: "14px", fontWeight: 700, fontSize: ".88rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontFamily: "'Source Sans 3',sans-serif", letterSpacing: ".05em", marginBottom: 8 }}>
+          <span style={{ color: "#c9a84c", fontSize: "1.1rem" }}>▶</span> Buscar Vídeos Relacionados
+        </button>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
+          {[1,2,3,4].map(i => (
+            <div key={i} style={{ display: "flex", gap: 12, background: "#f9f7f3", borderRadius: 10, padding: 12, animation: "shimmer 1.5s ease-in-out infinite", animationDelay: `${i*0.1}s` }}>
+              <div style={{ width: 120, height: 68, background: "#e5e0d5", borderRadius: 6, flexShrink: 0 }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, justifyContent: "center" }}>
+                <div style={{ height: 12, background: "#e5e0d5", borderRadius: 4, width: "80%" }} />
+                <div style={{ height: 10, background: "#ede8e0", borderRadius: 4, width: "50%" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Erro */}
+      {error && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: ".82rem", padding: "12px 16px", borderRadius: 8, lineHeight: 1.6 }}>
+          <strong>Erro:</strong> {error}
+          {error.includes("YOUTUBE_API_KEY") && (
+            <p style={{ marginTop: 6, fontSize: ".78rem" }}>Configure a variável <code>YOUTUBE_API_KEY</code> no Vercel para ativar esta função.</p>
+          )}
+        </div>
+      )}
+
+      {/* Player + lista */}
+      {!loading && videos.length > 0 && (
+        <div>
+          {/* Player embed */}
+          {activeVideo && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ position: "relative", paddingBottom: "56.25%", height: 0, borderRadius: 12, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
+                <iframe
+                  src={`${activeVideo.embedUrl}?autoplay=1&rel=0`}
+                  title={activeVideo.titulo}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                />
+              </div>
+              <div style={{ marginTop: 10, padding: "10px 14px", background: "#f9f7f3", borderRadius: 8, borderLeft: "3px solid #c9a84c" }}>
+                <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1rem", fontWeight: 700, color: "#1a2744", lineHeight: 1.3 }}>{activeVideo.titulo}</p>
+                <p style={{ fontSize: ".75rem", color: "#9b9690", marginTop: 3 }}>📺 {activeVideo.canal}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Grade de vídeos */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {videos.map((v, i) => (
+              <button key={i} onClick={() => setActiveVideo(v)}
+                style={{ background: activeVideo?.id === v.id ? "#f0ece0" : "#f9f7f3", border: `1.5px solid ${activeVideo?.id === v.id ? "#c9a84c" : "#e5e0d5"}`, borderRadius: 10, padding: 0, cursor: "pointer", textAlign: "left", overflow: "hidden", transition: "all .15s", fontFamily: "'Source Sans 3',sans-serif" }}
+                onMouseEnter={e => { if (activeVideo?.id !== v.id) { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.background = "#faf8f3"; } }}
+                onMouseLeave={e => { if (activeVideo?.id !== v.id) { e.currentTarget.style.borderColor = "#e5e0d5"; e.currentTarget.style.background = "#f9f7f3"; } }}>
+
+                {/* Thumbnail */}
+                <div style={{ position: "relative", width: "100%", paddingBottom: "56.25%", background: "#1a2744" }}>
+                  {v.thumbnail ? (
+                    <img src={v.thumbnail} alt={v.titulo} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#c9a84c", fontSize: "1.5rem" }}>▶</div>
+                  )}
+                  {/* Play overlay */}
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.3)", opacity: 0, transition: "opacity .2s" }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = 0}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", color: "#1a2744", fontSize: ".9rem", paddingLeft: 2 }}>▶</div>
+                  </div>
+                  <div style={{ position: "absolute", bottom: 6, right: 6, background: "rgba(0,0,0,0.75)", color: "white", fontSize: ".6rem", padding: "2px 5px", borderRadius: 3 }}>YouTube</div>
+                </div>
+
+                {/* Info */}
+                <div style={{ padding: "10px 12px" }}>
+                  <p style={{ fontSize: ".78rem", fontWeight: 700, color: "#1a2744", lineHeight: 1.35, marginBottom: 4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    {v.titulo}
+                  </p>
+                  <p style={{ fontSize: ".7rem", color: "#9b9690" }}>📺 {v.canal}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Ações */}
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button onClick={() => buscarVideos()}
+              style={{ flex: 1, background: "none", border: "1.5px solid #e2ddd5", borderRadius: 8, padding: "9px", fontSize: ".78rem", color: "#8b8680", cursor: "pointer", fontWeight: 600, fontFamily: "'Source Sans 3',sans-serif" }}>
+              🔄 Atualizar busca
+            </button>
+            {activeVideo && (
+              <a href={activeVideo.url} target="_blank" rel="noopener noreferrer"
+                style={{ flex: 1, background: "#ff0000", color: "white", border: "none", borderRadius: 8, padding: "9px", fontSize: ".78rem", cursor: "pointer", fontWeight: 700, fontFamily: "'Source Sans 3',sans-serif", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                ▶ Abrir no YouTube
+              </a>
+            )}
+          </div>
+
+          <p style={{ marginTop: 12, fontSize: ".7rem", color: "#c0bbb5", textAlign: "center", fontStyle: "italic" }}>
+            Clique em qualquer vídeo para assistir aqui mesmo · Resultados do YouTube
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 export default function SermonStudio({ userEmail = "", onLogout }) {
   const [input, setInput] = useState({ tema: "", referencia: "", objetivo: "", publicoTom: "" });
   const [loading, setLoading] = useState(false);
@@ -807,7 +1002,7 @@ RESPONDA APENAS COM O JSON.`;
             <div className="ss-card" style={{ overflow: "hidden" }}>
               {/* Tab Bar */}
               <div style={{ display: "flex", borderBottom: "1.5px solid #f0ece0", background: "#faf9f6", paddingLeft: 8, overflowX: "auto" }}>
-                {[{ id: "detalhado", icon: "📖", label: "Estudo Completo", sub: "Modo Detalhado" }, { id: "esboco", icon: "📝", label: "Esboço de Púlpito", sub: "Modo Resumido" }, { id: "slides", icon: "▦", label: "Apresentação", sub: "Slides Visuais" }].map(tab => (
+                {[{ id: "detalhado", icon: "📖", label: "Estudo Completo", sub: "Modo Detalhado" }, { id: "esboco", icon: "📝", label: "Esboço de Púlpito", sub: "Modo Resumido" }, { id: "slides", icon: "▦", label: "Apresentação", sub: "Slides Visuais" }, { id: "videos", icon: "▶", label: "Vídeos", sub: "Referências YouTube" }].map(tab => (
                   <button key={tab.id} className={`ss-tab ${activeTab === tab.id ? "ss-tab-active" : "ss-tab-inactive"}`} onClick={() => setActiveTab(tab.id)} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
                     <span>{tab.icon} {tab.label}</span>
                     <span style={{ fontSize: ".65rem", fontWeight: 400, opacity: 0.55, marginTop: 1 }}>{tab.sub}</span>
@@ -902,6 +1097,15 @@ RESPONDA APENAS COM O JSON.`;
                   </div>
                   <p style={{ marginTop: 14, fontSize: ".75rem", color: "#b0aba2", textAlign: "center", fontStyle: "italic" }}>✎ Clique diretamente no slide para editar qualquer texto</p>
                 </div>
+              )}
+
+              {/* ── TAB 4: Videos ── */}
+              {activeTab === "videos" && (
+                <VideosSection
+                  tema={input.tema}
+                  referencia={input.referencia}
+                  userEmail={userEmail}
+                />
               )}
             </div>
           )}
