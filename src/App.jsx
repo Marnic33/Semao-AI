@@ -366,6 +366,7 @@ const OCASIOES = [
   "Domingo comum", "Ano Novo", "Páscoa", "Dia das Mães", "Dia dos Pais",
   "Pentecostes", "Natal", "Semana Santa", "Culto de Jovens", "Culto Evangelístico",
   "Retiro Espiritual", "Aniversário da Igreja", "Culto de Ceia", "Missões",
+  "Culto Infantil", "Dia das Crianças", "Histórias Bíblicas", "EBD",
 ];
 
 function SuggestionModal({ userEmail = "", onSelect, onClose }) {
@@ -448,7 +449,7 @@ Varie os estilos: inclua temas doutrinários, narrativos, práticos e de apelo. 
             <div>
               <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Público-Alvo</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                {["Igreja Geral", "Jovens", "Crianças", "Casais", "Liderança", "Evangelístico", "Pequeno Grupo"].map(p => (
+                {["Igreja Geral", "Jovens", "Adolescentes", "Crianças", "Família", "Casais", "Liderança", "Evangelístico", "Pequeno Grupo", "EBD"].map(p => (
                   <button key={p} onClick={() => setPublico(v => v === p ? "" : p)}
                     style={{ padding: "5px 12px", borderRadius: 20, fontSize: ".75rem", fontWeight: 600, cursor: "pointer", border: "1.5px solid", transition: "all .15s", background: publico === p ? "#c9a84c" : "white", color: publico === p ? "#1a2744" : "#8b8680", borderColor: publico === p ? "#c9a84c" : "#e2ddd5", fontFamily: "'Source Sans 3',sans-serif" }}>
                     {p}
@@ -1690,7 +1691,31 @@ export default function SermonStudio({ userEmail = "", onLogout }) {
     if (!input.tema.trim() || !input.referencia.trim()) { setError("Por favor, preencha o Tema e a Referência Bíblica."); return; }
     setError(""); setLoading(true); setSermonData(null); setEditedData(null); setSlides([]); setEditedSlides([]);
 
+    const ehInfantil = /crian[çc]a|infantil|EBD|6-9|10-12/i.test(input.publicoTom || "") || /crian[çc]a|infantil/i.test(input.objetivo || "");
+    const ehFamilia = /fam[íi]lia|acolhedor/i.test(input.publicoTom || "");
+    const ehJovens = /jovens|adolescentes/i.test(input.publicoTom || "");
+
+    const guiaTom = ehInfantil
+      ? `ATENÇÃO — PÚBLICO INFANTIL: Adapte TUDO para crianças:
+- Linguagem MUITO simples, frases curtas, vocabulário acessível
+- Conte como uma HISTÓRIA envolvente (era uma vez, imagine, vamos conhecer...)
+- Use comparações concretas com o mundo da criança (escola, brinquedos, família, animais, natureza)
+- Faça PERGUNTAS interativas no decorrer ("Vocês já sentiram isso?", "Quem aqui já...?")
+- Inclua uma DINÂMICA ou ATIVIDADE prática em pelo menos um dos pontos
+- Aplicações práticas devem ser do cotidiano infantil (obedecer pais, ajudar amigos, falar a verdade, partilhar brinquedos)
+- Evite termos teológicos abstratos; substitua por explicações com exemplos visuais
+- Use repetições e refrões para fixar a mensagem
+- Termine com um gesto simbólico ou oração curta que a criança consiga repetir
+- Tom alegre e caloroso, mas com profundidade espiritual real`
+      : ehFamilia
+        ? `Tom acolhedor para famílias. Inclua aplicações para diferentes idades (crianças, jovens, adultos) e para a vida em família.`
+        : ehJovens
+          ? `Tom dinâmico e direto. Use exemplos da realidade jovem (relacionamentos, redes sociais, identidade, propósito). Linguagem viva, sem ser caricata.`
+          : `Tom adequado para igreja geral. Profundidade teológica equilibrada com aplicações práticas.`;
+
     const prompt = `Você é um teólogo e pregador evangélico experiente. Crie um sermão completo em JSON puro (sem markdown, sem backticks, sem texto fora do JSON).
+
+${guiaTom}
 
 Formato EXATO do JSON:
 {
@@ -2011,11 +2036,16 @@ RESPONDA APENAS COM O JSON.`;
                   <option value="">Selecione...</option>
                   <option>Igreja Geral - Solene</option>
                   <option>Jovens - Dinâmico</option>
+                  <option>Adolescentes - Reflexivo</option>
+                  <option>Crianças (6-9 anos) - Lúdico</option>
+                  <option>Crianças (10-12 anos) - Didático</option>
+                  <option>Família - Acolhedor</option>
                   <option>Pequeno Grupo - Intimista</option>
                   <option>Células - Participativo</option>
                   <option>Evangelístico - Apelo</option>
                   <option>Casais - Familiar</option>
                   <option>Liderança - Formativo</option>
+                  <option>Escola Bíblica Dominical - Ensino</option>
                 </select>
               </div>
             </div>
