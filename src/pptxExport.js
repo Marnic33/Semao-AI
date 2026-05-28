@@ -66,12 +66,16 @@ const PPTX_THEMES = {
 /* ─────────────────────────────────────────────────────────────────────────────
    HELPER — adiciona slide com layout padrão
 ───────────────────────────────────────────────────────────────────────────── */
-function addSlide(pptx, theme, tipo, titulo, conteudo, subtexto = "") {
+function addSlide(pptx, theme, tipo, titulo, conteudo, subtexto = "", bgImage = null) {
   const t = PPTX_THEMES[theme] || PPTX_THEMES.tradicional;
   const slide = pptx.addSlide();
-
-  // Fundo sólido
   slide.background = { color: t.bg };
+
+  // Imagem de fundo DALL-E
+  if (bgImage) {
+    slide.addImage({ data: bgImage, x: 0, y: 0, w: "100%", h: "100%", sizing: { type: "cover" } });
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: "100%", h: "100%", fill: { color: "000000", transparency: 38 }, line: { color: "000000", transparency: 100 } });
+  }
 
   // Barra de acento lateral (tema moderno)
   if (t.accentBar) {
@@ -185,10 +189,15 @@ function addSlide(pptx, theme, tipo, titulo, conteudo, subtexto = "") {
 /* ─────────────────────────────────────────────────────────────────────────────
    SLIDE DE TÍTULO ESPECIAL — layout hero
 ───────────────────────────────────────────────────────────────────────────── */
-function addTitleSlide(pptx, theme, data, input) {
+function addTitleSlide(pptx, theme, data, input, bgImage = null) {
   const t = PPTX_THEMES[theme] || PPTX_THEMES.tradicional;
   const slide = pptx.addSlide();
   slide.background = { color: t.bg };
+
+  if (bgImage) {
+    slide.addImage({ data: bgImage, x: 0, y: 0, w: "100%", h: "100%", sizing: { type: "cover" } });
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: "100%", h: "100%", fill: { color: "000000", transparency: 35 }, line: { color: "000000", transparency: 100 } });
+  }
 
   // Barra decorativa topo
   slide.addShape(pptx.ShapeType.rect, {
@@ -269,10 +278,15 @@ function addTitleSlide(pptx, theme, data, input) {
 /* ─────────────────────────────────────────────────────────────────────────────
    SLIDE DE PONTO PRINCIPAL — layout rico com número
 ───────────────────────────────────────────────────────────────────────────── */
-function addPontoSlide(pptx, theme, ponto, numero) {
+function addPontoSlide(pptx, theme, ponto, numero, bgImage = null) {
   const t = PPTX_THEMES[theme] || PPTX_THEMES.tradicional;
   const slide = pptx.addSlide();
   slide.background = { color: t.bg };
+
+  if (bgImage) {
+    slide.addImage({ data: bgImage, x: 0, y: 0, w: "100%", h: "100%", sizing: { type: "cover" } });
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: "100%", h: "100%", fill: { color: "000000", transparency: 38 }, line: { color: "000000", transparency: 100 } });
+  }
 
   if (!t.accentBar) {
     slide.addShape(pptx.ShapeType.rect, {
@@ -365,51 +379,73 @@ function addPontoSlide(pptx, theme, ponto, numero) {
 /* ─────────────────────────────────────────────────────────────────────────────
    FUNÇÃO PRINCIPAL — gera e baixa o .pptx
 ───────────────────────────────────────────────────────────────────────────── */
-export async function gerarPPTX(data, input, theme = "tradicional") {
+export async function gerarPPTX(data, input, theme = "tradicional", slideImages = {}) {
   const pptx = new PptxGenJS();
-
-  // Configurações globais
-  pptx.layout = "LAYOUT_WIDE"; // 16:9
+  pptx.layout = "LAYOUT_WIDE";
   pptx.author = "SermonStudio AI";
   pptx.subject = data.tituloFormatado;
   pptx.title = data.tituloFormatado;
 
+  // Reconstrói índices dos slides para mapear imagens
+  let slideIdx = 0;
+
+  // Helper para adicionar imagem de fundo se disponível
+  const addBgImage = (slide, idx) => {
+    const img = slideImages[idx];
+    if (!img) return;
+    slide.addImage({
+      data: img,
+      x: 0, y: 0, w: "100%", h: "100%",
+      sizing: { type: "cover" },
+    });
+    // Overlay escuro para legibilidade
+    slide.addShape(pptx.ShapeType.rect, {
+      x: 0, y: 0, w: "100%", h: "100%",
+      fill: { color: "000000", transparency: 40 },
+      line: { color: "000000", transparency: 100 },
+    });
+  };
+
   // ── Slide 1: Título Hero ──
-  addTitleSlide(pptx, theme, data, input);
+  addTitleSlide(pptx, theme, data, input, slideImages[slideIdx]);
+  slideIdx++;
 
   // ── Slide 2: Versículo Chave ──
   if (data.versiculoChave) {
     addSlide(pptx, theme, "escritura",
       `📖 ${input.referencia}`,
       `"${data.versiculoChave}"`,
-      "Texto-base do Sermão"
+      "Texto-base do Sermão",
+      slideImages[slideIdx]
     );
+    slideIdx++;
   }
 
   // ── Slides dos Pontos Principais ──
   data.pontosPrincipais.forEach((ponto, i) => {
-    // Slide do ponto
-    addPontoSlide(pptx, theme, ponto, i + 1);
-
-    // Slide de aplicação prática
+    addPontoSlide(pptx, theme, ponto, i + 1, slideImages[slideIdx]);
+    slideIdx++;
     addSlide(pptx, theme, "citacao",
       "Aplicação Prática",
       ponto.aplicacao,
-      ponto.versiculoApoio || ""
+      ponto.versiculoApoio || "",
+      slideImages[slideIdx]
     );
+    slideIdx++;
   });
 
   // ── Slide de Conclusão ──
   addSlide(pptx, theme, "conclusao",
     "Conclusão",
     data.fraseConclusao || data.conclusao.split(".")[0] + ".",
-    input.referencia
+    input.referencia,
+    slideImages[slideIdx]
   );
+  slideIdx++;
 
   // ── Slide Final ──
-  addTitleSlide(pptx, theme, data, input);
+  addTitleSlide(pptx, theme, data, input, null);
 
-  // ── Baixa o arquivo ──
   const fileName = `${data.tituloFormatado
     .replace(/[^\w\s\u00C0-\u024F]/g, "")
     .trim()
