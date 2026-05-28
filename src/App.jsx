@@ -315,7 +315,7 @@ function ShareModal({ data, input, onClose }) {
                 <span style={{ fontSize: "1.2rem" }}>✅</span>
                 <div>
                   <p style={{ fontWeight: 700, fontSize: ".82rem", color: "#166534" }}>PDF pronto!</p>
-                  <p style={{ fontSize: ".72rem", color: "#4ade80aa", color: "#15803d" }}>{pdfFileName}</p>
+                  <p style={{ fontSize: ".72rem", color: "#15803d" }}>{pdfFileName}</p>
                 </div>
               </div>
 
