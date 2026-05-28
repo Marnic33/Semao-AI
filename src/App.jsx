@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { gerarPDFEsboco } from "./pdfExport.js";
 import { gerarPPTX } from "./pptxExport.js";
+import { LIVROS_AT, LIVROS_NT } from "./bibleData.js";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    THEMES — 5 estilos visuais de slides
@@ -139,24 +140,36 @@ function buildSlidesExportHtml(slides, theme, tituloFormatado) {
 /* ─────────────────────────────────────────────────────────────────────────────
    SLIDE VIEWER
 ───────────────────────────────────────────────────────────────────────────── */
-function SlideViewer({ slide, theme, onChange }) {
+function SlideViewer({ slide, theme, onChange, bgImage }) {
   const t = THEMES[theme];
   const isModerno = theme === "moderno";
   if (!slide) return null;
+
   return (
     <div style={{ background: t.slideBg, borderLeft: isModerno ? t.borderAccent : undefined, position: "relative", width: "100%", aspectRatio: "16/9", borderRadius: isModerno ? "0 10px 10px 0" : "10px", overflow: "hidden", boxShadow: "0 16px 48px rgba(0,0,0,0.28)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {t.glow && <div style={{ position: "absolute", inset: 0, background: t.glow }} />}
-      {(theme === "tradicional" || theme === "natureza" || theme === "purpura") && (
+
+      {/* Imagem de fundo DALL-E */}
+      {bgImage && (
+        <>
+          <img src={bgImage} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
+          {/* Overlay escuro para legibilidade */}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,rgba(0,0,0,0.68) 0%,rgba(0,0,0,0.45) 100%)", zIndex: 1 }} />
+        </>
+      )}
+
+      {!bgImage && t.glow && <div style={{ position: "absolute", inset: 0, background: t.glow }} />}
+      {!bgImage && (theme === "tradicional" || theme === "natureza" || theme === "purpura") && (
         <div style={{ position: "absolute", inset: "12px", border: t.borderDecor, borderRadius: "3px", pointerEvents: "none" }} />
       )}
-      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: isModerno ? "flex-start" : "center", textAlign: isModerno ? "left" : "center", padding: "6% 7%", width: "100%", height: "100%", justifyContent: "center" }}>
-        <div style={{ fontFamily: t.bodyFont, fontSize: "clamp(7px,1vw,11px)", letterSpacing: "5px", textTransform: "uppercase", color: t.accentColor, marginBottom: "3%", opacity: 0.85 }}>
+
+      <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", alignItems: isModerno ? "flex-start" : "center", textAlign: isModerno ? "left" : "center", padding: "6% 7%", width: "100%", height: "100%", justifyContent: "center" }}>
+        <div style={{ fontFamily: t.bodyFont, fontSize: "clamp(7px,1vw,11px)", letterSpacing: "5px", textTransform: "uppercase", color: bgImage ? "#c9a84c" : t.accentColor, marginBottom: "3%", opacity: 0.9 }}>
           {slide.tipo === "titulo" ? "SERMÃO" : slide.tipo === "escritura" ? "ESCRITURA" : slide.tipo === "ponto" ? "PONTO PRINCIPAL" : slide.tipo === "citacao" ? "PALAVRA DE APOIO" : "CONCLUSÃO"}
         </div>
-        <textarea style={{ background: "transparent", border: "none", outline: "none", resize: "none", width: "100%", fontFamily: t.titleFont, fontSize: "clamp(1rem,3.6vw,2.8rem)", fontWeight: t.titleWeight, color: t.titleColor, lineHeight: 1.18, marginBottom: "3%", cursor: "text", textAlign: isModerno ? "left" : "center", overflow: "hidden" }} rows={2} value={slide.titulo} onChange={(e) => onChange({ ...slide, titulo: e.target.value })} />
-        <textarea style={{ background: "transparent", border: "none", outline: "none", resize: "none", width: "100%", maxWidth: isModerno ? "100%" : "80%", fontFamily: t.titleFont, fontSize: "clamp(0.6rem,1.9vw,1.3rem)", fontWeight: t.bodyWeight, fontStyle: t.bodyStyle, color: t.contentColor, lineHeight: 1.65, cursor: "text", textAlign: isModerno ? "left" : "center", overflow: "hidden" }} rows={3} value={slide.conteudo} onChange={(e) => onChange({ ...slide, conteudo: e.target.value })} />
+        <textarea style={{ background: "transparent", border: "none", outline: "none", resize: "none", width: "100%", fontFamily: t.titleFont, fontSize: "clamp(1rem,3.6vw,2.8rem)", fontWeight: t.titleWeight, color: bgImage ? "#ffffff" : t.titleColor, lineHeight: 1.18, marginBottom: "3%", cursor: "text", textAlign: isModerno ? "left" : "center", overflow: "hidden", textShadow: bgImage ? "0 2px 12px rgba(0,0,0,0.8)" : "none" }} rows={2} value={slide.titulo} onChange={(e) => onChange({ ...slide, titulo: e.target.value })} />
+        <textarea style={{ background: "transparent", border: "none", outline: "none", resize: "none", width: "100%", maxWidth: isModerno ? "100%" : "80%", fontFamily: t.titleFont, fontSize: "clamp(0.6rem,1.9vw,1.3rem)", fontWeight: t.bodyWeight, fontStyle: t.bodyStyle, color: bgImage ? "rgba(255,255,255,0.9)" : t.contentColor, lineHeight: 1.65, cursor: "text", textAlign: isModerno ? "left" : "center", overflow: "hidden", textShadow: bgImage ? "0 1px 8px rgba(0,0,0,0.7)" : "none" }} rows={3} value={slide.conteudo} onChange={(e) => onChange({ ...slide, conteudo: e.target.value })} />
         {slide.subtexto !== undefined && (
-          <input style={{ background: "transparent", border: "none", outline: "none", width: "100%", fontFamily: t.bodyFont, fontSize: "clamp(0.5rem,1.1vw,0.85rem)", color: t.subColor, marginTop: "3%", letterSpacing: "1px", textAlign: isModerno ? "left" : "center", cursor: "text" }} value={slide.subtexto} onChange={(e) => onChange({ ...slide, subtexto: e.target.value })} />
+          <input style={{ background: "transparent", border: "none", outline: "none", width: "100%", fontFamily: t.bodyFont, fontSize: "clamp(0.5rem,1.1vw,0.85rem)", color: bgImage ? "rgba(255,255,255,0.6)" : t.subColor, marginTop: "3%", letterSpacing: "1px", textAlign: isModerno ? "left" : "center", cursor: "text" }} value={slide.subtexto} onChange={(e) => onChange({ ...slide, subtexto: e.target.value })} />
         )}
       </div>
     </div>
@@ -511,8 +524,603 @@ Varie os estilos: inclua temas doutrinários, narrativos, práticos e de apelo. 
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   YOUTUBE VIDEOS SECTION
+   VERSE POPUP — exibe versículo ao clicar em referência
 ───────────────────────────────────────────────────────────────────────────── */
+function VersePopup({ referencia, userEmail, onClose, onAddToSlides }) {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchVerse = async () => {
+      setLoading(true); setError("");
+      try {
+        // Parse "Livro X:Y" ou "Livro X"
+        const match = referencia.match(/^(\d?\s?\D+?)\s+(\d+)(?::(\d+(?:-\d+)?))?$/i);
+        if (!match) throw new Error("Referência mal formatada");
+        const [_, livro, capitulo, versiculo] = match;
+        const resp = await fetch("/api/bible", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_email: userEmail,
+            tipo: "passagem",
+            livro: livro.trim(),
+            capitulo,
+            versiculo: versiculo || undefined,
+          }),
+        });
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || "Versículo não encontrado");
+        setData(result);
+      } catch (e) {
+        setError(e.message);
+      } finally { setLoading(false); }
+    };
+    fetchVerse();
+  }, [referencia, userEmail]);
+
+  const handleCopy = () => {
+    if (!data) return;
+    const txt = `"${data.textoCompleto}" — ${data.referencia}`;
+    navigator.clipboard.writeText(txt);
+  };
+
+  const handleWhatsApp = () => {
+    if (!data) return;
+    const txt = `📖 *${data.referencia}*\n\n"${data.textoCompleto}"\n\n_Compartilhado via SermonStudio AI_`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank");
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 520, maxHeight: "85vh", overflowY: "auto", padding: "26px 24px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
+          <div>
+            <p style={{ fontSize: ".7rem", fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 4 }}>📖 Escritura</p>
+            <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.5rem", fontWeight: 700, color: "#1a2744" }}>{data?.referencia || referencia}</h2>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.4rem", color: "#9b9690" }}>✕</button>
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div style={{ padding: "30px 0", textAlign: "center" }}>
+            <span style={{ display: "inline-block", width: 24, height: 24, border: "3px solid #c9a84c", borderTop: "3px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+            <p style={{ marginTop: 10, fontSize: ".8rem", color: "#9b9690" }}>Buscando passagem...</p>
+          </div>
+        )}
+
+        {/* Erro */}
+        {error && (
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: ".82rem", padding: "12px 16px", borderRadius: 8, lineHeight: 1.6 }}>
+            {error}
+          </div>
+        )}
+
+        {/* Texto */}
+        {data && (
+          <>
+            <div style={{ background: "#f9f7f3", borderLeft: "3px solid #c9a84c", borderRadius: "0 8px 8px 0", padding: "16px 20px", marginBottom: 16 }}>
+              {data.versiculos.length > 1 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {data.versiculos.map((v, i) => (
+                    <p key={i} style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1rem", color: "#374151", lineHeight: 1.75 }}>
+                      <sup style={{ color: "#c9a84c", fontWeight: 700, fontSize: ".7rem", marginRight: 4 }}>{v.versiculo}</sup>
+                      {v.texto}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.05rem", color: "#374151", lineHeight: 1.8, fontStyle: "italic" }}>
+                  "{data.textoCompleto}"
+                </p>
+              )}
+              <p style={{ marginTop: 12, fontSize: ".7rem", color: "#b0aba2", textTransform: "uppercase", letterSpacing: ".08em" }}>
+                {data.traducao}
+              </p>
+            </div>
+
+            {/* Ações */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+              <button onClick={() => onAddToSlides(data)}
+                style={{ background: "#1a2744", color: "#c9a84c", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                ▦ Adicionar aos Slides
+              </button>
+              <button onClick={handleWhatsApp}
+                style={{ background: "#25d366", color: "white", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+                💬 WhatsApp
+              </button>
+            </div>
+            <button onClick={handleCopy}
+              style={{ width: "100%", background: "white", color: "#374151", border: "1px solid #e5e0d5", borderRadius: 8, padding: "10px", fontWeight: 700, fontSize: ".75rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+              📋 Copiar texto
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BIBLE SECTION — Bíblia integrada com navegação
+───────────────────────────────────────────────────────────────────────────── */
+function BibleSection({ userEmail, onAddVerseToSlides }) {
+  const [nivel, setNivel] = useState("livros"); // livros | capitulos | versiculos
+  const [livroSelecionado, setLivroSelecionado] = useState(null);
+  const [capituloSelecionado, setCapituloSelecionado] = useState(null);
+  const [versiculos, setVersiculos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [versiculoSelecionado, setVersiculoSelecionado] = useState(null);
+  const [filtroLivro, setFiltroLivro] = useState("");
+
+  const handleSelecionarLivro = (livro) => {
+    setLivroSelecionado(livro);
+    setCapituloSelecionado(null);
+    setVersiculos([]);
+    setNivel("capitulos");
+  };
+
+  const handleSelecionarCapitulo = async (cap) => {
+    setCapituloSelecionado(cap);
+    setNivel("versiculos");
+    setLoading(true); setError(""); setVersiculos([]);
+    try {
+      const resp = await fetch("/api/bible", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_email: userEmail,
+          tipo: "capitulo",
+          livro: livroSelecionado.nome,
+          capitulo: cap,
+        }),
+      });
+      const result = await resp.json();
+      if (!resp.ok) throw new Error(result.error || "Capítulo não encontrado");
+      setVersiculos(result.versiculos || []);
+    } catch (e) {
+      setError(e.message);
+    } finally { setLoading(false); }
+  };
+
+  const handleVoltar = () => {
+    if (nivel === "versiculos") {
+      setNivel("capitulos");
+      setVersiculos([]);
+      setCapituloSelecionado(null);
+    } else if (nivel === "capitulos") {
+      setNivel("livros");
+      setLivroSelecionado(null);
+    }
+  };
+
+  // ── Tela de livros ──
+  if (nivel === "livros") {
+    const filtrar = (livros) => {
+      const q = filtroLivro.trim().toLowerCase();
+      if (!q) return livros;
+      return livros.filter(l => l.nome.toLowerCase().includes(q) || l.abrev.includes(q));
+    };
+
+    return (
+      <div style={{ padding: "24px 28px 32px" }}>
+        <div style={{ marginBottom: 20 }}>
+          <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", fontWeight: 700, color: "#1a2744", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+            📖 Bíblia Sagrada
+          </h3>
+          <p style={{ fontSize: ".8rem", color: "#9b9690", lineHeight: 1.5 }}>
+            Tradução Almeida · Navegue pelos livros ou clique em qualquer versículo para adicionar aos slides.
+          </p>
+        </div>
+
+        {/* Busca */}
+        <input
+          style={{ width: "100%", background: "#f9f7f3", border: "1.5px solid #e2ddd5", borderRadius: 8, padding: "10px 14px", fontFamily: "'Source Sans 3',sans-serif", fontSize: ".85rem", color: "#1a2744", outline: "none", marginBottom: 16 }}
+          placeholder="🔍 Filtrar livros..."
+          value={filtroLivro}
+          onChange={e => setFiltroLivro(e.target.value)}
+        />
+
+        {/* Antigo Testamento */}
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
+            ✦ Antigo Testamento <span style={{ color: "#b0aba2", fontWeight: 400 }}>({filtrar(LIVROS_AT).length} livros)</span>
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 7 }}>
+            {filtrar(LIVROS_AT).map(livro => (
+              <button key={livro.abrev} onClick={() => handleSelecionarLivro(livro)}
+                style={{ background: "#f9f7f3", border: "1.5px solid #e5e0d5", borderRadius: 7, padding: "8px 10px", fontSize: ".78rem", color: "#1a2744", cursor: "pointer", textAlign: "left", transition: "all .15s", fontFamily: "'Source Sans 3',sans-serif", fontWeight: 600 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.background = "#faf8f3"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e0d5"; e.currentTarget.style.background = "#f9f7f3"; }}>
+                {livro.nome} <span style={{ color: "#b0aba2", fontWeight: 400, fontSize: ".68rem" }}>· {livro.capitulos}c</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Novo Testamento */}
+        <div>
+          <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 10 }}>
+            ✦ Novo Testamento <span style={{ color: "#b0aba2", fontWeight: 400 }}>({filtrar(LIVROS_NT).length} livros)</span>
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 7 }}>
+            {filtrar(LIVROS_NT).map(livro => (
+              <button key={livro.abrev} onClick={() => handleSelecionarLivro(livro)}
+                style={{ background: "#f9f7f3", border: "1.5px solid #e5e0d5", borderRadius: 7, padding: "8px 10px", fontSize: ".78rem", color: "#1a2744", cursor: "pointer", textAlign: "left", transition: "all .15s", fontFamily: "'Source Sans 3',sans-serif", fontWeight: 600 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.background = "#faf8f3"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e0d5"; e.currentTarget.style.background = "#f9f7f3"; }}>
+                {livro.nome} <span style={{ color: "#b0aba2", fontWeight: 400, fontSize: ".68rem" }}>· {livro.capitulos}c</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Tela de capítulos ──
+  if (nivel === "capitulos") {
+    return (
+      <div style={{ padding: "24px 28px 32px" }}>
+        {/* Header com voltar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button onClick={handleVoltar} style={{ background: "white", border: "1.5px solid #e5e0d5", borderRadius: 8, padding: "6px 12px", fontSize: ".8rem", cursor: "pointer", color: "#374151", fontWeight: 600, fontFamily: "'Source Sans 3',sans-serif" }}>← Livros</button>
+          <div>
+            <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.5rem", fontWeight: 700, color: "#1a2744" }}>{livroSelecionado.nome}</h3>
+            <p style={{ fontSize: ".75rem", color: "#9b9690" }}>{livroSelecionado.capitulos} capítulos · Selecione um capítulo</p>
+          </div>
+        </div>
+
+        {/* Grid de capítulos */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(50px,1fr))", gap: 6 }}>
+          {Array.from({ length: livroSelecionado.capitulos }, (_, i) => i + 1).map(cap => (
+            <button key={cap} onClick={() => handleSelecionarCapitulo(cap)}
+              style={{ aspectRatio: "1", background: "#1a2744", color: "#c9a84c", border: "1px solid rgba(201,168,76,0.3)", borderRadius: 7, fontSize: ".88rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", transition: "all .15s", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#22305c"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "#1a2744"; e.currentTarget.style.transform = "translateY(0)"; }}>
+              {cap}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Tela de versículos ──
+  return (
+    <div style={{ padding: "24px 28px 32px" }}>
+      {/* Header com voltar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <button onClick={handleVoltar} style={{ background: "white", border: "1.5px solid #e5e0d5", borderRadius: 8, padding: "6px 12px", fontSize: ".8rem", cursor: "pointer", color: "#374151", fontWeight: 600, fontFamily: "'Source Sans 3',sans-serif" }}>← Capítulos</button>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.5rem", fontWeight: 700, color: "#1a2744" }}>
+            {livroSelecionado.nome} <span style={{ color: "#c9a84c" }}>{capituloSelecionado}</span>
+          </h3>
+          <p style={{ fontSize: ".75rem", color: "#9b9690" }}>Clique em qualquer versículo para usar</p>
+        </div>
+        <button onClick={() => onAddVerseToSlides({
+          referencia: `${livroSelecionado.nome} ${capituloSelecionado}`,
+          textoCompleto: versiculos.map(v => v.texto).join(" "),
+          versiculos,
+        })}
+          disabled={loading || versiculos.length === 0}
+          style={{ background: "#c9a84c", color: "#1a2744", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: ".75rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", opacity: (loading || versiculos.length === 0) ? 0.5 : 1 }}>
+          ▦ Capítulo inteiro
+        </button>
+      </div>
+
+      {/* Loading */}
+      {loading && (
+        <div style={{ padding: "60px 0", textAlign: "center" }}>
+          <span style={{ display: "inline-block", width: 28, height: 28, border: "3px solid #c9a84c", borderTop: "3px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+          <p style={{ marginTop: 12, fontSize: ".85rem", color: "#9b9690" }}>Carregando capítulo...</p>
+        </div>
+      )}
+
+      {/* Erro */}
+      {error && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: ".82rem", padding: "12px 16px", borderRadius: 8, lineHeight: 1.6 }}>
+          {error}
+        </div>
+      )}
+
+      {/* Versículos */}
+      {!loading && versiculos.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {versiculos.map(v => (
+            <button key={v.versiculo} onClick={() => setVersiculoSelecionado(v)}
+              style={{ background: "#f9f7f3", border: "1.5px solid #e5e0d5", borderRadius: 8, padding: "12px 16px", cursor: "pointer", textAlign: "left", display: "flex", gap: 12, alignItems: "flex-start", transition: "all .15s", fontFamily: "'Source Sans 3',sans-serif" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.background = "#faf8f3"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5e0d5"; e.currentTarget.style.background = "#f9f7f3"; }}>
+              <div style={{ width: 32, height: 32, background: "#1a2744", color: "#c9a84c", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".75rem", fontWeight: 700, flexShrink: 0 }}>
+                {v.versiculo}
+              </div>
+              <p style={{ flex: 1, fontFamily: "'Cormorant Garamond',serif", fontSize: ".95rem", color: "#374151", lineHeight: 1.65 }}>
+                {v.texto}
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Popup ao clicar em versículo */}
+      {versiculoSelecionado && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setVersiculoSelecionado(null)}>
+          <div style={{ background: "white", borderRadius: 16, width: "100%", maxWidth: 500, padding: "24px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <p style={{ fontSize: ".7rem", fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 4 }}>📖 Versículo</p>
+                <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", fontWeight: 700, color: "#1a2744" }}>
+                  {livroSelecionado.nome} {capituloSelecionado}:{versiculoSelecionado.versiculo}
+                </h3>
+              </div>
+              <button onClick={() => setVersiculoSelecionado(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.3rem", color: "#9b9690" }}>✕</button>
+            </div>
+            <div style={{ background: "#f9f7f3", borderLeft: "3px solid #c9a84c", borderRadius: "0 8px 8px 0", padding: "16px 20px", marginBottom: 16 }}>
+              <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.05rem", color: "#374151", lineHeight: 1.75, fontStyle: "italic" }}>
+                "{versiculoSelecionado.texto}"
+              </p>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <button onClick={() => {
+                onAddVerseToSlides({
+                  referencia: `${livroSelecionado.nome} ${capituloSelecionado}:${versiculoSelecionado.versiculo}`,
+                  textoCompleto: versiculoSelecionado.texto,
+                  versiculos: [versiculoSelecionado],
+                });
+                setVersiculoSelecionado(null);
+              }}
+                style={{ background: "#1a2744", color: "#c9a84c", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+                ▦ Adicionar aos Slides
+              </button>
+              <button onClick={() => {
+                const txt = `📖 *${livroSelecionado.nome} ${capituloSelecionado}:${versiculoSelecionado.versiculo}*\n\n"${versiculoSelecionado.texto}"\n\n_SermonStudio AI_`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank");
+              }}
+                style={{ background: "#25d366", color: "white", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+                💬 WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   AUDIO SECTION — Narração com OpenAI TTS
+───────────────────────────────────────────────────────────────────────────── */
+const VOZES = [
+  { id: "onyx",   label: "Onyx",   desc: "Grave e solene — ideal para pregações formais", emoji: "🎙" },
+  { id: "echo",   label: "Echo",   desc: "Masculino claro — ótimo para ensino",           emoji: "📣" },
+  { id: "fable",  label: "Fable",  desc: "Narrativo e envolvente — para histórias",       emoji: "📖" },
+  { id: "nova",   label: "Nova",   desc: "Feminino suave — caloroso e acolhedor",         emoji: "✨" },
+  { id: "alloy",  label: "Alloy",  desc: "Neutro e profissional — versátil",              emoji: "🔊" },
+  { id: "shimmer",label: "Shimmer",desc: "Feminino expressivo — dinâmico e jovem",        emoji: "🌟" },
+];
+
+function buildSermonScript(data, input) {
+  const pts = data.pontosPrincipais.map((p, i) =>
+    `Ponto ${i + 1}: ${p.titulo}.\n${p.desenvolvimento.replace(/\n\n/g, " ")}\nAplicação: ${p.aplicacao}`
+  ).join("\n\n");
+
+  return `${data.tituloFormatado}.
+Texto bíblico: ${input.referencia}.
+
+${data.introducao.replace(/\n\n/g, " ")}
+
+Contexto teológico: ${data.contextoTeologico.replace(/\n\n/g, " ")}
+
+${pts}
+
+Conclusão: ${data.conclusao.replace(/\n\n/g, " ")}`;
+}
+
+function AudioSection({ data, input, userEmail }) {
+  const [voz, setVoz] = useState("onyx");
+  const [velocidade, setVelocidade] = useState(1.0);
+  const [loading, setLoading] = useState(false);
+  const [audioSrc, setAudioSrc] = useState(null);
+  const [audioLabel, setAudioLabel] = useState("");
+  const [error, setError] = useState("");
+  const [secao, setSecao] = useState("completo"); // completo | introducao | pontos | conclusao
+  const audioRef = useRef(null);
+
+  const SECOES = [
+    { id: "completo",   label: "Sermão Completo",  icon: "📖" },
+    { id: "introducao", label: "Introdução",        icon: "🎬" },
+    { id: "pontos",     label: "Pontos Principais", icon: "✦" },
+    { id: "conclusao",  label: "Conclusão",         icon: "🎯" },
+  ];
+
+  const buildTexto = () => {
+    switch (secao) {
+      case "introducao":
+        return `${data.tituloFormatado}. ${data.introducao.replace(/\n\n/g, " ")}`;
+      case "pontos":
+        return data.pontosPrincipais.map((p, i) =>
+          `Ponto ${i + 1}: ${p.titulo}. ${p.desenvolvimento.replace(/\n\n/g, " ")} Aplicação: ${p.aplicacao}`
+        ).join(" ");
+      case "conclusao":
+        return `Conclusão. ${data.conclusao.replace(/\n\n/g, " ")}`;
+      default:
+        return buildSermonScript(data, input);
+    }
+  };
+
+  const handleGerar = async () => {
+    setLoading(true); setError(""); setAudioSrc(null);
+    const texto = buildTexto();
+    try {
+      const resp = await fetch("/api/audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_email: userEmail, text: texto, voice: voz, speed: velocidade }),
+      });
+      const result = await resp.json();
+      if (!resp.ok) throw new Error(result.error || "Erro ao gerar áudio");
+      setAudioSrc(result.audio);
+      setAudioLabel(`${data.tituloFormatado} — ${SECOES.find(s => s.id === secao)?.label} — Voz ${VOZES.find(v => v.id === voz)?.label}`);
+    } catch (e) {
+      setError(e.message);
+    } finally { setLoading(false); }
+  };
+
+  const handleDownload = () => {
+    if (!audioSrc) return;
+    const a = document.createElement("a");
+    a.href = audioSrc;
+    a.download = `${audioLabel.replace(/[^\w\s]/g, "").trim().slice(0, 60)}.mp3`;
+    a.click();
+  };
+
+  const handleWhatsApp = () => {
+    handleDownload();
+    setTimeout(() => {
+      const msg = `🎙 *${data.tituloFormatado}*\n📖 ${input.referencia}\n\n🎧 Narração do sermão em áudio (MP3 baixado no seu dispositivo).\n\n_Criado com SermonStudio AI_`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    }, 800);
+  };
+
+  const charCount = buildTexto().length;
+  const estimatedMins = Math.ceil((charCount / 15) / 60); // ~15 chars/seg
+
+  return (
+    <div style={{ padding: "24px 28px 32px" }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 22 }}>
+        <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", fontWeight: 700, color: "#1a2744", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+          🎙 Narração do Sermão
+        </h3>
+        <p style={{ fontSize: ".8rem", color: "#9b9690", lineHeight: 1.5 }}>
+          Gera um áudio narrado com voz de IA usando <strong style={{ color: "#1a2744" }}>OpenAI TTS</strong> — baixe o MP3 ou compartilhe no WhatsApp.
+        </p>
+      </div>
+
+      {/* Seleção de seção */}
+      <div style={{ marginBottom: 18 }}>
+        <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Trecho para Narrar</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {SECOES.map(s => (
+            <button key={s.id} onClick={() => setSecao(s.id)}
+              style={{ padding: "10px 14px", borderRadius: 9, border: `1.5px solid ${secao === s.id ? "#1a2744" : "#e2ddd5"}`, background: secao === s.id ? "#1a2744" : "white", color: secao === s.id ? "#c9a84c" : "#8b8680", fontWeight: 700, fontSize: ".8rem", cursor: "pointer", textAlign: "left", fontFamily: "'Source Sans 3',sans-serif", display: "flex", alignItems: "center", gap: 8, transition: "all .15s" }}>
+              <span>{s.icon}</span> {s.label}
+            </button>
+          ))}
+        </div>
+        <p style={{ marginTop: 6, fontSize: ".7rem", color: "#b0aba2" }}>
+          ~{charCount.toLocaleString()} caracteres · duração estimada: <strong>{estimatedMins} min</strong>
+        </p>
+      </div>
+
+      {/* Seleção de voz */}
+      <div style={{ marginBottom: 18 }}>
+        <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Voz do Narrador</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          {VOZES.map(v => (
+            <button key={v.id} onClick={() => setVoz(v.id)}
+              style={{ padding: "10px 14px", borderRadius: 9, border: `1.5px solid ${voz === v.id ? "#c9a84c" : "#e2ddd5"}`, background: voz === v.id ? "#faf8f0" : "white", cursor: "pointer", textAlign: "left", fontFamily: "'Source Sans 3',sans-serif", display: "flex", alignItems: "center", gap: 12, transition: "all .15s" }}>
+              <span style={{ fontSize: "1.1rem" }}>{v.emoji}</span>
+              <div>
+                <p style={{ fontWeight: 700, fontSize: ".82rem", color: voz === v.id ? "#1a2744" : "#374151", marginBottom: 2 }}>{v.label}</p>
+                <p style={{ fontSize: ".72rem", color: "#9b9690" }}>{v.desc}</p>
+              </div>
+              {voz === v.id && <span style={{ marginLeft: "auto", color: "#c9a84c", fontWeight: 700, fontSize: ".8rem" }}>✓</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Velocidade */}
+      <div style={{ marginBottom: 20 }}>
+        <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>
+          Velocidade: <span style={{ color: "#c9a84c" }}>{velocidade.toFixed(1)}x</span>
+          <span style={{ fontWeight: 400, color: "#b0aba2", marginLeft: 8 }}>
+            {velocidade < 0.9 ? "(lenta)" : velocidade > 1.15 ? "(rápida)" : "(normal)"}
+          </span>
+        </p>
+        <input type="range" min="0.75" max="1.5" step="0.05" value={velocidade}
+          onChange={e => setVelocidade(parseFloat(e.target.value))}
+          style={{ width: "100%", accentColor: "#c9a84c", cursor: "pointer" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: ".68rem", color: "#b0aba2", marginTop: 3 }}>
+          <span>0.75x Devagar</span><span>1.0x Normal</span><span>1.5x Rápido</span>
+        </div>
+      </div>
+
+      {/* Erro */}
+      {error && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: ".82rem", padding: "10px 14px", borderRadius: 8, marginBottom: 14, lineHeight: 1.6 }}>
+          {error}
+          {error.includes("OPENAI_API_KEY") && <p style={{ marginTop: 4, fontSize: ".75rem" }}>Configure <code>OPENAI_API_KEY</code> no Vercel.</p>}
+        </div>
+      )}
+
+      {/* Botão gerar */}
+      {!audioSrc && (
+        <button onClick={handleGerar} disabled={loading}
+          style={{ width: "100%", background: loading ? "#f0ece0" : "linear-gradient(135deg,#1a2744,#22305c)", color: loading ? "#9b9690" : "#f5f0e8", border: "none", borderRadius: 10, padding: "14px", fontWeight: 700, fontSize: ".9rem", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontFamily: "'Source Sans 3',sans-serif", marginBottom: 8 }}>
+          {loading
+            ? <><span style={{ display: "inline-block", width: 18, height: 18, border: "2px solid #c9a84c", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> Gerando narração... aguarde</>
+            : <><span style={{ color: "#c9a84c", fontSize: "1.1rem" }}>🎙</span> Gerar Áudio com IA</>}
+        </button>
+      )}
+
+      {/* Player de áudio */}
+      {audioSrc && (
+        <div style={{ background: "#f9f7f3", border: "1px solid #e5e0d5", borderRadius: 12, padding: "20px", marginBottom: 14 }}>
+          {/* Badge de sucesso */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, padding: "10px 14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8 }}>
+            <span style={{ fontSize: "1.2rem" }}>✅</span>
+            <div>
+              <p style={{ fontWeight: 700, fontSize: ".82rem", color: "#166534" }}>Áudio gerado com sucesso!</p>
+              <p style={{ fontSize: ".72rem", color: "#15803d" }}>Voz: {VOZES.find(v => v.id === voz)?.label} · {velocidade}x · {SECOES.find(s => s.id === secao)?.label}</p>
+            </div>
+          </div>
+
+          {/* Player nativo */}
+          <audio ref={audioRef} controls src={audioSrc} style={{ width: "100%", borderRadius: 8, marginBottom: 14 }} />
+
+          {/* Botões de ação */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <button onClick={handleDownload}
+              style={{ background: "#1a2744", color: "#c9a84c", border: "none", borderRadius: 8, padding: "10px", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+              ⬇ Baixar MP3
+            </button>
+            <button onClick={handleWhatsApp}
+              style={{ background: "#25d366", color: "white", border: "none", borderRadius: 8, padding: "10px", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+              💬 WhatsApp
+            </button>
+            <button onClick={() => { setAudioSrc(null); setError(""); }}
+              style={{ background: "white", color: "#8b8680", border: "1px solid #e5e0d5", borderRadius: 8, padding: "10px", fontWeight: 700, fontSize: ".78rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+              🔄 Novo
+            </button>
+          </div>
+
+          <p style={{ marginTop: 10, fontSize: ".68rem", color: "#b0aba2", textAlign: "center", fontStyle: "italic" }}>
+            Baixe o MP3 e compartilhe no WhatsApp, Telegram ou email · Audio gerado por OpenAI TTS
+          </p>
+        </div>
+      )}
+
+      {/* Info de custo */}
+      {!audioSrc && !loading && (
+        <div style={{ background: "#f9f7f3", border: "1px solid #e5e0d5", borderRadius: 8, padding: "12px 14px" }}>
+          <p style={{ fontSize: ".72rem", color: "#9b9690", lineHeight: 1.6 }}>
+            ⚠ Requer <code style={{ background: "#ede8e0", padding: "1px 4px", borderRadius: 3 }}>OPENAI_API_KEY</code> no Vercel<br />
+            Custo: ~$0.015 por 1.000 caracteres (modelo tts-1-hd) · Sermão completo ≈ $0.10–0.20
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 function VideosSection({ tema, referencia, userEmail }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -804,6 +1412,59 @@ RESPONDA APENAS COM O JSON.`;
   };
 
   const [pptxLoading, setPptxLoading] = useState(false);
+  const [slideImages, setSlideImages] = useState({}); // { slideIndex: "data:image/png;base64,..." }
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [imagesProgress, setImagesProgress] = useState({ current: 0, total: 0, label: "" });
+
+  // Gera prompt artístico para cada slide
+  const buildImagePrompt = (slide, tema, referencia) => {
+    const base = `Cinematic, photorealistic, dramatic lighting, no text, no people faces, suitable for church projection. `;
+    const ctx = `Biblical theme: "${tema}" (${referencia}). `;
+    const prompts = {
+      titulo: `${base}${ctx}Majestic open Bible with golden light rays from heaven above, deep blue sky with clouds, epic and reverent atmosphere, ultra detailed.`,
+      escritura: `${base}${ctx}Ancient parchment scroll with glowing text, warm candlelight, stone walls of ancient temple, sacred atmosphere.`,
+      ponto: `${base}${ctx}Abstract concept: "${slide.titulo}". Symbolic spiritual imagery, rays of light, depth and meaning, painterly, inspirational.`,
+      citacao: `${base}${ctx}Peaceful nature scene with light filtering through forest trees, morning mist, divine presence atmosphere, serene and holy.`,
+      conclusao: `${base}${ctx}Sunrise over mountains and valleys, golden hour, hope and new beginning, majestic landscape, inspirational.`,
+    };
+    return prompts[slide.tipo] || prompts.titulo;
+  };
+
+  const handleGenerateImages = async () => {
+    if (!data || imagesLoading) return;
+    setImagesLoading(true);
+    setSlideImages({});
+
+    // Gera imagens apenas para slides principais (título, pontos, conclusão)
+    const targetSlides = currentSlides
+      .map((s, i) => ({ ...s, index: i }))
+      .filter(s => ["titulo", "ponto", "conclusao"].includes(s.tipo));
+
+    setImagesProgress({ current: 0, total: targetSlides.length, label: "Iniciando..." });
+
+    const newImages = {};
+    for (let i = 0; i < targetSlides.length; i++) {
+      const slide = targetSlides[i];
+      setImagesProgress({ current: i + 1, total: targetSlides.length, label: slide.titulo.replace("📖 ", "").slice(0, 40) });
+
+      try {
+        const prompt = buildImagePrompt(slide, input.tema, input.referencia);
+        const resp = await fetch("/api/imagine", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_email: userEmail, prompt }),
+        });
+        const result = await resp.json();
+        if (resp.ok && result.image) {
+          newImages[slide.index] = result.image;
+          setSlideImages({ ...newImages }); // atualiza progressivamente
+        }
+      } catch (err) {
+        console.error("Image gen error:", err);
+      }
+    }
+    setImagesLoading(false);
+  };
 
   const handleExportOutline = () => {
     if (!data) return;
@@ -825,7 +1486,7 @@ RESPONDA APENAS COM O JSON.`;
     if (!data || pptxLoading) return;
     setPptxLoading(true);
     try {
-      await gerarPPTX(data, input, slideTheme);
+      await gerarPPTX(data, input, slideTheme, slideImages);
     } catch (err) {
       console.error("PPTX error:", err);
     } finally {
@@ -1025,7 +1686,7 @@ RESPONDA APENAS COM O JSON.`;
             <div className="ss-card" style={{ overflow: "hidden" }}>
               {/* Tab Bar */}
               <div style={{ display: "flex", borderBottom: "1.5px solid #f0ece0", background: "#faf9f6", paddingLeft: 8, overflowX: "auto" }}>
-                {[{ id: "detalhado", icon: "📖", label: "Estudo Completo", sub: "Modo Detalhado" }, { id: "esboco", icon: "📝", label: "Esboço de Púlpito", sub: "Modo Resumido" }, { id: "slides", icon: "▦", label: "Apresentação", sub: "Slides Visuais" }, { id: "videos", icon: "▶", label: "Vídeos", sub: "Referências YouTube" }].map(tab => (
+                {[{ id: "detalhado", icon: "📖", label: "Estudo Completo", sub: "Modo Detalhado" }, { id: "esboco", icon: "📝", label: "Esboço de Púlpito", sub: "Modo Resumido" }, { id: "slides", icon: "▦", label: "Apresentação", sub: "Slides Visuais" }, { id: "audio", icon: "🎙", label: "Narração", sub: "Áudio com IA" }, { id: "biblia", icon: "📖", label: "Bíblia", sub: "Consulta Online" }, { id: "videos", icon: "▶", label: "Vídeos", sub: "Referências YouTube" }].map(tab => (
                   <button key={tab.id} className={`ss-tab ${activeTab === tab.id ? "ss-tab-active" : "ss-tab-inactive"}`} onClick={() => setActiveTab(tab.id)} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
                     <span>{tab.icon} {tab.label}</span>
                     <span style={{ fontSize: ".65rem", fontWeight: 400, opacity: 0.55, marginTop: 1 }}>{tab.sub}</span>
@@ -1115,7 +1776,58 @@ RESPONDA APENAS COM O JSON.`;
                         : <>📊 Baixar .pptx</>}
                     </button>
                   </div>
-                  <SlideViewer slide={currentSlides[slideIndex]} theme={slideTheme} onChange={updateSlide} />
+                  <SlideViewer
+                    slide={currentSlides[slideIndex]}
+                    theme={slideTheme}
+                    onChange={updateSlide}
+                    bgImage={slideImages[slideIndex] || null}
+                  />
+
+                  {/* ── Painel de Imagens IA ── */}
+                  <div style={{ marginTop: 14, background: "#f9f7f3", border: "1px solid #e5e0d5", borderRadius: 10, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                      <div>
+                        <p style={{ fontSize: ".78rem", fontWeight: 700, color: "#1a2744", marginBottom: 2 }}>🎨 Imagens de Fundo com DALL-E</p>
+                        <p style={{ fontSize: ".7rem", color: "#9b9690" }}>
+                          {Object.keys(slideImages).length > 0
+                            ? `${Object.keys(slideImages).length} imagens geradas · Clique nos slides para ver`
+                            : "Gera imagens artísticas únicas para cada slide"}
+                        </p>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {Object.keys(slideImages).length > 0 && (
+                          <button onClick={() => setSlideImages({})}
+                            style={{ background: "none", border: "1px solid #e5e0d5", borderRadius: 7, padding: "7px 12px", fontSize: ".75rem", color: "#9b9690", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>
+                            ✕ Remover
+                          </button>
+                        )}
+                        <button
+                          onClick={handleGenerateImages}
+                          disabled={imagesLoading}
+                          style={{ background: imagesLoading ? "#f0ece0" : "linear-gradient(135deg,#1a2744,#22305c)", color: imagesLoading ? "#9b9690" : "#c9a84c", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: ".78rem", fontWeight: 700, cursor: imagesLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "'Source Sans 3',sans-serif" }}>
+                          {imagesLoading
+                            ? <>
+                                <span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #c9a84c", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+                                {imagesProgress.current}/{imagesProgress.total} — {imagesProgress.label.slice(0, 25)}...
+                              </>
+                            : <><span style={{ fontSize: "1rem" }}>✦</span> {Object.keys(slideImages).length > 0 ? "Regenerar" : "Gerar Imagens"}</>
+                          }
+                        </button>
+                      </div>
+                    </div>
+                    {/* Barra de progresso */}
+                    {imagesLoading && imagesProgress.total > 0 && (
+                      <div style={{ marginTop: 10, background: "#e5e0d5", borderRadius: 20, height: 4, overflow: "hidden" }}>
+                        <div style={{ height: "100%", background: "#c9a84c", borderRadius: 20, width: `${(imagesProgress.current / imagesProgress.total) * 100}%`, transition: "width .4s ease" }} />
+                      </div>
+                    )}
+                    {/* Aviso de custo */}
+                    {Object.keys(slideImages).length === 0 && !imagesLoading && (
+                      <p style={{ marginTop: 8, fontSize: ".68rem", color: "#b0aba2", fontStyle: "italic" }}>
+                        ⚠ Requer <code style={{ background: "#ede8e0", padding: "1px 4px", borderRadius: 3 }}>OPENAI_API_KEY</code> no Vercel · ~$0.04 por imagem (DALL-E 3)
+                      </p>
+                    )}
+                  </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
                     <button className="ss-btn-outline" onClick={() => setSlideIndex(i => Math.max(0, i - 1))} disabled={slideIndex === 0} style={{ padding: "8px 18px", fontSize: ".8rem" }}>← Anterior</button>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -1130,7 +1842,35 @@ RESPONDA APENAS COM O JSON.`;
                 </div>
               )}
 
-              {/* ── TAB 4: Videos ── */}
+              {/* ── TAB 4: Audio ── */}
+              {activeTab === "audio" && (
+                <AudioSection data={data} input={input} userEmail={userEmail} />
+              )}
+
+              {/* ── TAB 5: Bible ── */}
+              {activeTab === "biblia" && (
+                <BibleSection
+                  userEmail={userEmail}
+                  onAddVerseToSlides={(verso) => {
+                    // Adiciona um novo slide do tipo citação ao final da lista
+                    const newSlide = {
+                      id: Date.now(),
+                      tipo: "citacao",
+                      titulo: `📖 ${verso.referencia}`,
+                      conteudo: `"${verso.textoCompleto}"`,
+                      subtexto: "Bíblia Sagrada",
+                    };
+                    // Insere antes do slide de conclusão (último)
+                    const updated = [...currentSlides];
+                    updated.splice(updated.length - 1, 0, newSlide);
+                    setEditedSlides(updated);
+                    setSlideIndex(updated.length - 2);
+                    setActiveTab("slides");
+                  }}
+                />
+              )}
+
+              {/* ── TAB 6: Videos ── */}
               {activeTab === "videos" && (
                 <VideosSection
                   tema={input.tema}
