@@ -1148,6 +1148,43 @@ function AudioSection({ data, input, userEmail }) {
     if (podcastAudioRef.current) podcastAudioRef.current.pause();
   };
 
+  // Junta todos os segmentos MP3 num único arquivo para baixar
+  const [baixandoPodcast, setBaixandoPodcast] = useState(false);
+  const buildPodcastBlob = async () => {
+    // Converte cada data-uri base64 em bytes e concatena
+    const buffers = [];
+    for (const seg of podcastSegments) {
+      const base64 = seg.audio.split(",")[1];
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      buffers.push(bytes);
+    }
+    return new Blob(buffers, { type: "audio/mp3" });
+  };
+
+  const handleDownloadPodcast = async () => {
+    if (!podcastSegments.length) return;
+    setBaixandoPodcast(true);
+    try {
+      const blob = await buildPodcastBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Podcast - ${(roteiro?.titulo || data.tituloFormatado).replace(/[^\w\s]/g, "").trim().slice(0, 50)}.mp3`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally { setBaixandoPodcast(false); }
+  };
+
+  const handleWhatsAppPodcast = async () => {
+    await handleDownloadPodcast();
+    setTimeout(() => {
+      const msg = `🎧 *${roteiro?.titulo || data.tituloFormatado}*\n📖 ${input.referencia}\n\nPodcast do sermão em áudio (MP3 baixado no seu dispositivo).\n\n_Criado com SermonStudio AI_`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    }, 900);
+  };
+
   return (
     <div style={{ padding: "24px 28px 32px" }}>
 
@@ -1227,6 +1264,20 @@ function AudioSection({ data, input, userEmail }) {
                   <button onClick={stopPodcast} style={{ flex: 1, background: "#b91c1c", color: "white", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>⏸ Pausar</button>
                 )}
                 <button onClick={() => { setPodcastSegments([]); setRoteiro(null); }} style={{ background: "white", color: "#8b8680", border: "1px solid #e5e0d5", borderRadius: 8, padding: "12px 16px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>🔄 Novo</button>
+              </div>
+
+              {/* Botões de download */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+                <button onClick={handleDownloadPodcast} disabled={baixandoPodcast}
+                  style={{ background: "#1a2744", color: "#c9a84c", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: ".8rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", opacity: baixandoPodcast ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                  {baixandoPodcast
+                    ? <><span style={{ display: "inline-block", width: 12, height: 12, border: "2px solid #c9a84c", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> Gerando...</>
+                    : <>⬇ Baixar MP3</>}
+                </button>
+                <button onClick={handleWhatsAppPodcast} disabled={baixandoPodcast}
+                  style={{ background: "#25d366", color: "white", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: ".8rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", opacity: baixandoPodcast ? 0.6 : 1 }}>
+                  💬 WhatsApp
+                </button>
               </div>
 
               <audio ref={podcastAudioRef} style={{ display: "none" }} />
