@@ -997,7 +997,7 @@ ${pts}
 Conclusão: ${data.conclusao.replace(/\n\n/g, " ")}`;
 }
 
-function AudioSection({ data, input, userEmail }) {
+function AudioSection({ data, input, userEmail, setGlobalAudio, setGlobalAudioPlaying, globalAudioRef }) {
   const [modo, setModo] = useState("narracao"); // narracao | podcast
   const [voz, setVoz] = useState("onyx");
   const [velocidade, setVelocidade] = useState(1.0);
@@ -1052,7 +1052,11 @@ function AudioSection({ data, input, userEmail }) {
       const result = await resp.json();
       if (!resp.ok) throw new Error(result.error || "Erro ao gerar áudio");
       setAudioSrc(result.audio);
-      setAudioLabel(`${data.tituloFormatado} — ${SECOES.find(s => s.id === secao)?.label} — Voz ${VOZES.find(v => v.id === voz)?.label}`);
+      const label = `${data.tituloFormatado} — ${SECOES.find(s => s.id === secao)?.label}`;
+      setAudioLabel(label);
+      // Manda para o player global
+      setGlobalAudio({ src: result.audio, label, type: "narracao" });
+      setGlobalAudioPlaying(true);
     } catch (e) {
       setError(e.message);
     } finally { setLoading(false); }
@@ -1123,29 +1127,38 @@ function AudioSection({ data, input, userEmail }) {
     } finally { setLoading(false); }
   };
 
-  // Reprodução sequencial do podcast
+  // Reprodução sequencial do podcast — usa player global (sobrevive a trocas de aba)
   const playPodcast = (startIdx = 0) => {
     if (!podcastSegments.length) return;
     podcastIndexRef.current = startIdx;
     setPodcastPlaying(true);
-    playSegment(startIdx);
+    playGlobalSegment(startIdx);
   };
 
-  const playSegment = (idx) => {
-    if (idx >= podcastSegments.length) { setPodcastPlaying(false); return; }
-    const audio = podcastAudioRef.current;
-    if (!audio) return;
-    audio.src = podcastSegments[idx].audio;
-    audio.play();
-    audio.onended = () => {
-      podcastIndexRef.current = idx + 1;
-      playSegment(idx + 1);
-    };
+  const playGlobalSegment = (idx) => {
+    if (idx >= podcastSegments.length) {
+      setPodcastPlaying(false);
+      setGlobalAudioPlaying(false);
+      return;
+    }
+    const seg = podcastSegments[idx];
+    const label = `${roteiro?.titulo || data.tituloFormatado} — ${seg.locutor === "host" ? "Ana" : "Pedro"} (${idx + 1}/${podcastSegments.length})`;
+    setGlobalAudio({
+      src: seg.audio,
+      label,
+      type: "podcast",
+      onEnded: () => {
+        const next = idx + 1;
+        podcastIndexRef.current = next;
+        playGlobalSegment(next);
+      },
+    });
+    setGlobalAudioPlaying(true);
   };
 
   const stopPodcast = () => {
     setPodcastPlaying(false);
-    if (podcastAudioRef.current) podcastAudioRef.current.pause();
+    setGlobalAudioPlaying(false);
   };
 
   // Junta todos os segmentos MP3 num único arquivo para baixar
@@ -1740,6 +1753,19 @@ RESPONDA APENAS COM O JSON.`;
 
   const [pptxLoading, setPptxLoading] = useState(false);
   const [projecao, setProjecao] = useState(null); // { referencia, texto }
+
+  // ── Player de áudio global (sobrevive a trocas de aba) ──
+  const [globalAudio, setGlobalAudio] = useState(null); // { src, label, type } | null
+  const [globalAudioPlaying, setGlobalAudioPlaying] = useState(false);
+  const globalAudioRef = useRef(null);
+
+  // Sincroniza play/pause externo com o elemento de áudio
+  useEffect(() => {
+    const el = globalAudioRef.current;
+    if (!el) return;
+    if (globalAudioPlaying) el.play().catch(() => setGlobalAudioPlaying(false));
+    else el.pause();
+  }, [globalAudioPlaying, globalAudio]);
   const [slideImages, setSlideImages] = useState({}); // { slideIndex: "data:image/png;base64,..." }
   const [imagesLoading, setImagesLoading] = useState(false);
   const [imagesProgress, setImagesProgress] = useState({ current: 0, total: 0, label: "" });
@@ -1864,6 +1890,56 @@ RESPONDA APENAS COM O JSON.`;
       {showShare && data && <ShareModal data={data} input={input} onClose={() => setShowShare(false)} />}
       {showSuggestions && <SuggestionModal userEmail={userEmail} onSelect={s => { setInput(s); setShowSuggestions(false); }} onClose={() => setShowSuggestions(false)} />}
       {projecao && <FullscreenProjection referencia={projecao.referencia} texto={projecao.texto} theme={slideTheme} onClose={() => setProjecao(null)} />}
+
+      {/* ─── ELEMENTO DE ÁUDIO GLOBAL (invisível) ─── */}
+      <audio
+        ref={globalAudioRef}
+        src={globalAudio?.src || undefined}
+        onEnded={() => {
+          if (globalAudio?.onEnded) globalAudio.onEnded();
+          else setGlobalAudioPlaying(false);
+        }}
+        style={{ display: "none" }}
+      />
+
+      {/* ─── MINI-PLAYER FLUTUANTE ─── */}
+      {globalAudio && (
+        <div style={{
+          position: "fixed", bottom: 18, right: 18, zIndex: 80,
+          background: "#1a2744", color: "#c9a84c",
+          borderRadius: 14, padding: "11px 16px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          display: "flex", alignItems: "center", gap: 12,
+          maxWidth: 340, border: "1px solid rgba(201,168,76,0.3)",
+          backdropFilter: "blur(8px)",
+          animation: "slideUp .3s ease",
+        }}>
+          <style>{`@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}`}</style>
+
+          {/* Play/Pause */}
+          <button onClick={() => setGlobalAudioPlaying(p => !p)}
+            style={{ background: "#c9a84c", color: "#1a2744", border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", fontSize: ".9rem", fontWeight: 700, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {globalAudioPlaying ? "⏸" : "▶"}
+          </button>
+
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: ".62rem", fontWeight: 700, letterSpacing: "1.5px", textTransform: "uppercase", color: "#c9a84c", opacity: 0.7, marginBottom: 2 }}>
+              {globalAudio.type === "podcast" ? "🎧 Podcast" : "🎙 Narração"}
+            </p>
+            <p style={{ fontSize: ".78rem", color: "#f5f0e8", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {globalAudio.label || "Reproduzindo..."}
+            </p>
+          </div>
+
+          {/* Fechar */}
+          <button onClick={() => { setGlobalAudio(null); setGlobalAudioPlaying(false); }}
+            title="Fechar player"
+            style={{ background: "transparent", border: "1px solid rgba(201,168,76,0.3)", color: "#c9a84c", borderRadius: "50%", width: 28, height: 28, cursor: "pointer", fontSize: ".75rem", flexShrink: 0, opacity: 0.7 }}>
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ── HEADER ── */}
       <header style={{ background: "#1a2744", color: "#f5f0e8", padding: "0 32px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 2px 20px rgba(0,0,0,.25)" }}>
@@ -2180,7 +2256,14 @@ RESPONDA APENAS COM O JSON.`;
 
               {/* ── TAB 4: Audio ── */}
               {activeTab === "audio" && (
-                <AudioSection data={data} input={input} userEmail={userEmail} />
+                <AudioSection
+                  data={data}
+                  input={input}
+                  userEmail={userEmail}
+                  setGlobalAudio={setGlobalAudio}
+                  setGlobalAudioPlaying={setGlobalAudioPlaying}
+                  globalAudioRef={globalAudioRef}
+                />
               )}
 
               {/* ── TAB 5: Bible ── */}
