@@ -524,6 +524,70 @@ Varie os estilos: inclua temas doutrinários, narrativos, práticos e de apelo. 
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   FULLSCREEN PROJECTION — projeta versículo/slide em tela cheia (telão)
+───────────────────────────────────────────────────────────────────────────── */
+function FullscreenProjection({ referencia, texto, theme = "tradicional", onClose }) {
+  const t = THEMES[theme];
+
+  useEffect(() => {
+    // Tenta entrar em fullscreen nativo
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    // ESC fecha
+    const handleKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: t.slideBg,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        padding: "5vw", cursor: "pointer",
+      }}
+    >
+      {t.glow && <div style={{ position: "absolute", inset: 0, background: t.glow }} />}
+      {(theme === "tradicional" || theme === "natureza" || theme === "purpura") && (
+        <div style={{ position: "absolute", inset: "2vw", border: t.borderDecor, borderRadius: "6px", pointerEvents: "none" }} />
+      )}
+
+      {/* Botão fechar */}
+      <button onClick={(e) => { e.stopPropagation(); onClose(); }}
+        style={{ position: "absolute", top: "3vh", right: "3vw", background: "rgba(255,255,255,0.1)", border: `1px solid ${t.accentColor}`, color: t.accentColor, borderRadius: 8, padding: "8px 16px", fontSize: "1rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", zIndex: 2 }}>
+        ✕ Sair (ESC)
+      </button>
+
+      {/* Label */}
+      <div style={{ position: "relative", zIndex: 1, fontFamily: t.bodyFont, fontSize: "clamp(14px,2vw,22px)", letterSpacing: "6px", textTransform: "uppercase", color: t.accentColor, marginBottom: "4vh", opacity: 0.9, textAlign: "center" }}>
+        📖 Escritura
+      </div>
+
+      {/* Referência */}
+      <div style={{ position: "relative", zIndex: 1, fontFamily: t.titleFont, fontSize: "clamp(36px,6vw,90px)", fontWeight: t.titleWeight, color: t.titleColor, lineHeight: 1.1, marginBottom: "5vh", textAlign: "center", textShadow: "0 2px 20px rgba(0,0,0,0.3)" }}>
+        {referencia}
+      </div>
+
+      {/* Texto do versículo */}
+      <div style={{ position: "relative", zIndex: 1, fontFamily: t.titleFont, fontSize: "clamp(20px,3.2vw,46px)", fontWeight: t.bodyWeight, fontStyle: t.bodyStyle, color: t.contentColor, lineHeight: 1.5, maxWidth: "85%", textAlign: "center", textShadow: "0 1px 12px rgba(0,0,0,0.25)" }}>
+        "{texto}"
+      </div>
+
+      {/* Dica */}
+      <div style={{ position: "absolute", bottom: "3vh", left: 0, right: 0, textAlign: "center", fontFamily: t.bodyFont, fontSize: "clamp(10px,1.2vw,14px)", color: t.subColor, opacity: 0.6 }}>
+        Toque na tela ou pressione ESC para sair
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    VERSE POPUP — exibe versículo ao clicar em referência
 ───────────────────────────────────────────────────────────────────────────── */
 function VersePopup({ referencia, userEmail, onClose, onAddToSlides }) {
@@ -648,7 +712,7 @@ function VersePopup({ referencia, userEmail, onClose, onAddToSlides }) {
 /* ─────────────────────────────────────────────────────────────────────────────
    BIBLE SECTION — Bíblia integrada com navegação
 ───────────────────────────────────────────────────────────────────────────── */
-function BibleSection({ userEmail, onAddVerseToSlides }) {
+function BibleSection({ userEmail, onAddVerseToSlides, onProject }) {
   const [nivel, setNivel] = useState("livros"); // livros | capitulos | versiculos
   const [livroSelecionado, setLivroSelecionado] = useState(null);
   const [capituloSelecionado, setCapituloSelecionado] = useState(null);
@@ -866,6 +930,17 @@ function BibleSection({ userEmail, onAddVerseToSlides }) {
                 "{versiculoSelecionado.texto}"
               </p>
             </div>
+            {/* Botão Projetar Agora */}
+            <button onClick={() => {
+              onProject({
+                referencia: `${livroSelecionado.nome} ${capituloSelecionado}:${versiculoSelecionado.versiculo}`,
+                texto: versiculoSelecionado.texto,
+              });
+              setVersiculoSelecionado(null);
+            }}
+              style={{ width: "100%", background: "linear-gradient(135deg,#c9a84c,#d4b55e)", color: "#1a2744", border: "none", borderRadius: 8, padding: "13px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              🖥 Projetar Agora (Tela Cheia)
+            </button>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               <button onClick={() => {
                 onAddVerseToSlides({
@@ -923,14 +998,25 @@ Conclusão: ${data.conclusao.replace(/\n\n/g, " ")}`;
 }
 
 function AudioSection({ data, input, userEmail }) {
+  const [modo, setModo] = useState("narracao"); // narracao | podcast
   const [voz, setVoz] = useState("onyx");
   const [velocidade, setVelocidade] = useState(1.0);
   const [loading, setLoading] = useState(false);
   const [audioSrc, setAudioSrc] = useState(null);
   const [audioLabel, setAudioLabel] = useState("");
   const [error, setError] = useState("");
-  const [secao, setSecao] = useState("completo"); // completo | introducao | pontos | conclusao
+  const [secao, setSecao] = useState("completo");
   const audioRef = useRef(null);
+
+  // Podcast state
+  const [vozHost, setVozHost] = useState("nova");
+  const [vozConvidado, setVozConvidado] = useState("onyx");
+  const [roteiro, setRoteiro] = useState(null);
+  const [podcastProgress, setPodcastProgress] = useState({ current: 0, total: 0, label: "" });
+  const [podcastSegments, setPodcastSegments] = useState([]); // [{locutor, texto, audio}]
+  const [podcastPlaying, setPodcastPlaying] = useState(false);
+  const podcastAudioRef = useRef(null);
+  const podcastIndexRef = useRef(0);
 
   const SECOES = [
     { id: "completo",   label: "Sermão Completo",  icon: "📖" },
@@ -991,8 +1077,196 @@ function AudioSection({ data, input, userEmail }) {
   const charCount = buildTexto().length;
   const estimatedMins = Math.ceil((charCount / 15) / 60); // ~15 chars/seg
 
+  /* ── PODCAST: gera roteiro + áudios ── */
+  const handleGerarPodcast = async () => {
+    setLoading(true); setError(""); setRoteiro(null); setPodcastSegments([]);
+    setPodcastProgress({ current: 0, total: 0, label: "Criando roteiro..." });
+
+    try {
+      // 1) Gera o roteiro do diálogo
+      const sermaoResumo = {
+        tituloFormatado: data.tituloFormatado,
+        referencia: input.referencia,
+        introducao: data.introducao.replace(/\n\n/g, " ").slice(0, 600),
+        pontos: data.pontosPrincipais.map((p, i) => `${i + 1}. ${p.titulo}: ${p.frasePrincipal}`).join(" "),
+        conclusao: data.conclusao.replace(/\n\n/g, " ").slice(0, 400),
+      };
+      const respR = await fetch("/api/podcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_email: userEmail, etapa: "roteiro", sermao: sermaoResumo }),
+      });
+      const dataR = await respR.json();
+      if (!respR.ok) throw new Error(dataR.error || "Erro ao gerar roteiro");
+      setRoteiro(dataR);
+
+      // 2) Gera o áudio de cada fala em sequência
+      const falas = dataR.falas || [];
+      setPodcastProgress({ current: 0, total: falas.length, label: "Gravando vozes..." });
+      const segments = [];
+      for (let i = 0; i < falas.length; i++) {
+        const fala = falas[i];
+        setPodcastProgress({ current: i + 1, total: falas.length, label: `${fala.locutor === "host" ? "Ana" : "Pedro"}: ${fala.texto.slice(0, 30)}...` });
+        const respA = await fetch("/api/podcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_email: userEmail, etapa: "audio", texto: fala.texto, locutor: fala.locutor, vozHost, vozConvidado }),
+        });
+        const dataA = await respA.json();
+        if (respA.ok && dataA.audio) {
+          segments.push({ ...fala, audio: dataA.audio });
+          setPodcastSegments([...segments]);
+        }
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally { setLoading(false); }
+  };
+
+  // Reprodução sequencial do podcast
+  const playPodcast = (startIdx = 0) => {
+    if (!podcastSegments.length) return;
+    podcastIndexRef.current = startIdx;
+    setPodcastPlaying(true);
+    playSegment(startIdx);
+  };
+
+  const playSegment = (idx) => {
+    if (idx >= podcastSegments.length) { setPodcastPlaying(false); return; }
+    const audio = podcastAudioRef.current;
+    if (!audio) return;
+    audio.src = podcastSegments[idx].audio;
+    audio.play();
+    audio.onended = () => {
+      podcastIndexRef.current = idx + 1;
+      playSegment(idx + 1);
+    };
+  };
+
+  const stopPodcast = () => {
+    setPodcastPlaying(false);
+    if (podcastAudioRef.current) podcastAudioRef.current.pause();
+  };
+
   return (
     <div style={{ padding: "24px 28px 32px" }}>
+
+      {/* ── Toggle de modo ── */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 22, background: "#f0ece0", padding: 5, borderRadius: 12 }}>
+        <button onClick={() => { setModo("narracao"); setError(""); }}
+          style={{ flex: 1, padding: "11px", borderRadius: 9, border: "none", cursor: "pointer", fontWeight: 700, fontSize: ".82rem", fontFamily: "'Source Sans 3',sans-serif", background: modo === "narracao" ? "white" : "transparent", color: modo === "narracao" ? "#1a2744" : "#9b9690", boxShadow: modo === "narracao" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", transition: "all .2s" }}>
+          🎙 Narração Simples
+        </button>
+        <button onClick={() => { setModo("podcast"); setError(""); }}
+          style={{ flex: 1, padding: "11px", borderRadius: 9, border: "none", cursor: "pointer", fontWeight: 700, fontSize: ".82rem", fontFamily: "'Source Sans 3',sans-serif", background: modo === "podcast" ? "white" : "transparent", color: modo === "podcast" ? "#1a2744" : "#9b9690", boxShadow: modo === "podcast" ? "0 2px 8px rgba(0,0,0,0.08)" : "none", transition: "all .2s" }}>
+          🎧 Podcast (2 Vozes)
+        </button>
+      </div>
+
+      {/* ════════ MODO PODCAST ════════ */}
+      {modo === "podcast" && (
+        <div>
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.3rem", fontWeight: 700, color: "#1a2744", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>🎧 Podcast do Sermão</h3>
+            <p style={{ fontSize: ".8rem", color: "#9b9690", lineHeight: 1.5 }}>
+              A IA cria um <strong style={{ color: "#1a2744" }}>diálogo entre dois apresentadores</strong> discutindo seu sermão — estilo Audio Overview.
+            </p>
+          </div>
+
+          {/* Vozes */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+            <div>
+              <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", marginBottom: 6 }}>👩 Ana (Apresentadora)</p>
+              <select value={vozHost} onChange={e => setVozHost(e.target.value)}
+                style={{ width: "100%", background: "#f9f7f3", border: "1.5px solid #e2ddd5", borderRadius: 8, padding: "9px 12px", fontSize: ".82rem", color: "#1a2744", fontFamily: "'Source Sans 3',sans-serif", cursor: "pointer" }}>
+                <option value="nova">Nova (feminino suave)</option>
+                <option value="shimmer">Shimmer (feminino expressivo)</option>
+                <option value="alloy">Alloy (neutro)</option>
+              </select>
+            </div>
+            <div>
+              <p style={{ fontSize: ".72rem", fontWeight: 700, color: "#1a2744", marginBottom: 6 }}>👨 Pedro (Teólogo)</p>
+              <select value={vozConvidado} onChange={e => setVozConvidado(e.target.value)}
+                style={{ width: "100%", background: "#f9f7f3", border: "1.5px solid #e2ddd5", borderRadius: 8, padding: "9px 12px", fontSize: ".82rem", color: "#1a2744", fontFamily: "'Source Sans 3',sans-serif", cursor: "pointer" }}>
+                <option value="onyx">Onyx (grave e solene)</option>
+                <option value="echo">Echo (masculino claro)</option>
+                <option value="fable">Fable (narrativo)</option>
+              </select>
+            </div>
+          </div>
+
+          {error && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: ".82rem", padding: "10px 14px", borderRadius: 8, marginBottom: 14, lineHeight: 1.6 }}>{error}</div>}
+
+          {/* Botão gerar */}
+          {podcastSegments.length === 0 && (
+            <button onClick={handleGerarPodcast} disabled={loading}
+              style={{ width: "100%", background: loading ? "#f0ece0" : "linear-gradient(135deg,#1a2744,#22305c)", color: loading ? "#9b9690" : "#f5f0e8", border: "none", borderRadius: 10, padding: "14px", fontWeight: 700, fontSize: ".9rem", cursor: loading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, fontFamily: "'Source Sans 3',sans-serif" }}>
+              {loading
+                ? <><span style={{ display: "inline-block", width: 18, height: 18, border: "2px solid #c9a84c", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} /> {podcastProgress.label} ({podcastProgress.current}/{podcastProgress.total})</>
+                : <><span style={{ color: "#c9a84c", fontSize: "1.1rem" }}>🎧</span> Criar Podcast com IA</>}
+            </button>
+          )}
+
+          {/* Barra de progresso */}
+          {loading && podcastProgress.total > 0 && (
+            <div style={{ marginTop: 10, background: "#e5e0d5", borderRadius: 20, height: 4, overflow: "hidden" }}>
+              <div style={{ height: "100%", background: "#c9a84c", borderRadius: 20, width: `${(podcastProgress.current / podcastProgress.total) * 100}%`, transition: "width .4s ease" }} />
+            </div>
+          )}
+
+          {/* Player do podcast */}
+          {podcastSegments.length > 0 && (
+            <div style={{ background: "#f9f7f3", border: "1px solid #e5e0d5", borderRadius: 12, padding: "18px", marginTop: 8 }}>
+              {roteiro?.titulo && <p style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "1.15rem", fontWeight: 700, color: "#1a2744", marginBottom: 14 }}>🎧 {roteiro.titulo}</p>}
+
+              {/* Controles */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                {!podcastPlaying ? (
+                  <button onClick={() => playPodcast(0)} style={{ flex: 1, background: "#1a2744", color: "#c9a84c", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>▶ Reproduzir Podcast</button>
+                ) : (
+                  <button onClick={stopPodcast} style={{ flex: 1, background: "#b91c1c", color: "white", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>⏸ Pausar</button>
+                )}
+                <button onClick={() => { setPodcastSegments([]); setRoteiro(null); }} style={{ background: "white", color: "#8b8680", border: "1px solid #e5e0d5", borderRadius: 8, padding: "12px 16px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif" }}>🔄 Novo</button>
+              </div>
+
+              <audio ref={podcastAudioRef} style={{ display: "none" }} />
+
+              {/* Transcrição clicável */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto" }}>
+                {podcastSegments.map((seg, i) => (
+                  <button key={i} onClick={() => playPodcast(i)}
+                    style={{ display: "flex", gap: 10, alignItems: "flex-start", background: seg.locutor === "host" ? "#fef9f0" : "white", border: "1px solid #e5e0d5", borderRadius: 9, padding: "11px 14px", cursor: "pointer", textAlign: "left", fontFamily: "'Source Sans 3',sans-serif", transition: "all .15s" }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: seg.locutor === "host" ? "#c9a84c" : "#1a2744", color: seg.locutor === "host" ? "#1a2744" : "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".9rem", flexShrink: 0 }}>
+                      {seg.locutor === "host" ? "👩" : "👨"}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: ".7rem", fontWeight: 700, color: seg.locutor === "host" ? "#c9a84c" : "#1a2744", marginBottom: 2 }}>{seg.locutor === "host" ? "Ana" : "Pedro"}</p>
+                      <p style={{ fontSize: ".82rem", color: "#374151", lineHeight: 1.55 }}>{seg.texto}</p>
+                    </div>
+                    <span style={{ color: "#c9a84c", fontSize: ".8rem", flexShrink: 0, marginTop: 6 }}>▶</span>
+                  </button>
+                ))}
+              </div>
+              <p style={{ marginTop: 12, fontSize: ".7rem", color: "#b0aba2", textAlign: "center", fontStyle: "italic" }}>
+                Clique em qualquer fala para começar a ouvir a partir dela
+              </p>
+            </div>
+          )}
+
+          {/* Info custo */}
+          {podcastSegments.length === 0 && !loading && (
+            <div style={{ background: "#f9f7f3", border: "1px solid #e5e0d5", borderRadius: 8, padding: "12px 14px", marginTop: 14 }}>
+              <p style={{ fontSize: ".72rem", color: "#9b9690", lineHeight: 1.6 }}>
+                ⚠ Requer <code style={{ background: "#ede8e0", padding: "1px 4px", borderRadius: 3 }}>OPENAI_API_KEY</code> · O roteiro usa a IA Claude + as vozes via OpenAI TTS · Custo: ~$0.10 por podcast
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════ MODO NARRAÇÃO ════════ */}
+      {modo === "narracao" && (
+      <div>
 
       {/* Header */}
       <div style={{ marginBottom: 22 }}>
@@ -1117,6 +1391,8 @@ function AudioSection({ data, input, userEmail }) {
             Custo: ~$0.015 por 1.000 caracteres (modelo tts-1-hd) · Sermão completo ≈ $0.10–0.20
           </p>
         </div>
+      )}
+      </div>
       )}
     </div>
   );
@@ -1412,20 +1688,20 @@ RESPONDA APENAS COM O JSON.`;
   };
 
   const [pptxLoading, setPptxLoading] = useState(false);
+  const [projecao, setProjecao] = useState(null); // { referencia, texto }
   const [slideImages, setSlideImages] = useState({}); // { slideIndex: "data:image/png;base64,..." }
   const [imagesLoading, setImagesLoading] = useState(false);
   const [imagesProgress, setImagesProgress] = useState({ current: 0, total: 0, label: "" });
 
   // Gera prompt artístico para cada slide
   const buildImagePrompt = (slide, tema, referencia) => {
-    const base = `Cinematic, photorealistic, dramatic lighting, no text, no people faces, suitable for church projection. `;
-    const ctx = `Biblical theme: "${tema}" (${referencia}). `;
+    const base = `Beautiful cinematic photograph, dramatic natural lighting, atmospheric, inspirational, no text, no words, no letters. `;
     const prompts = {
-      titulo: `${base}${ctx}Majestic open Bible with golden light rays from heaven above, deep blue sky with clouds, epic and reverent atmosphere, ultra detailed.`,
-      escritura: `${base}${ctx}Ancient parchment scroll with glowing text, warm candlelight, stone walls of ancient temple, sacred atmosphere.`,
-      ponto: `${base}${ctx}Abstract concept: "${slide.titulo}". Symbolic spiritual imagery, rays of light, depth and meaning, painterly, inspirational.`,
-      citacao: `${base}${ctx}Peaceful nature scene with light filtering through forest trees, morning mist, divine presence atmosphere, serene and holy.`,
-      conclusao: `${base}${ctx}Sunrise over mountains and valleys, golden hour, hope and new beginning, majestic landscape, inspirational.`,
+      titulo: `${base}Majestic landscape at golden hour, sun rays breaking through dramatic clouds over mountains and valleys, sense of hope and grandeur, ultra detailed, peaceful.`,
+      escritura: `${base}Warm candlelight on an old open book on a wooden table, soft glow, cozy library atmosphere, shallow depth of field, reverent mood.`,
+      ponto: `${base}Abstract inspirational scene with light rays through morning forest mist, path leading forward, sense of purpose and reflection, painterly cinematic style.`,
+      citacao: `${base}Serene nature landscape, calm lake at sunrise reflecting the sky, gentle light, tranquil and contemplative atmosphere, wide angle.`,
+      conclusao: `${base}Breathtaking sunrise over open horizon, warm golden and orange tones, new beginning and hope, vast inspiring sky, cinematic.`,
     };
     return prompts[slide.tipo] || prompts.titulo;
   };
@@ -1536,6 +1812,7 @@ RESPONDA APENAS COM O JSON.`;
       {showHistory && <HistoryPanel onLoad={handleLoadFromHistory} onClose={() => setShowHistory(false)} />}
       {showShare && data && <ShareModal data={data} input={input} onClose={() => setShowShare(false)} />}
       {showSuggestions && <SuggestionModal userEmail={userEmail} onSelect={s => { setInput(s); setShowSuggestions(false); }} onClose={() => setShowSuggestions(false)} />}
+      {projecao && <FullscreenProjection referencia={projecao.referencia} texto={projecao.texto} theme={slideTheme} onClose={() => setProjecao(null)} />}
 
       {/* ── HEADER ── */}
       <header style={{ background: "#1a2744", color: "#f5f0e8", padding: "0 32px", position: "sticky", top: 0, zIndex: 50, boxShadow: "0 2px 20px rgba(0,0,0,.25)" }}>
@@ -1838,6 +2115,14 @@ RESPONDA APENAS COM O JSON.`;
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(90px,1fr))", gap: 8, marginTop: 18 }}>
                     {currentSlides.map((slide, i) => <SlideThumb key={i} slide={slide} theme={slideTheme} active={i === slideIndex} onClick={() => setSlideIndex(i)} />)}
                   </div>
+                  <button
+                    onClick={() => {
+                      const s = currentSlides[slideIndex];
+                      setProjecao({ referencia: s.titulo.replace("📖 ", ""), texto: s.conteudo.replace(/^"|"$/g, "") });
+                    }}
+                    style={{ width: "100%", marginTop: 16, background: "linear-gradient(135deg,#c9a84c,#d4b55e)", color: "#1a2744", border: "none", borderRadius: 9, padding: "13px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    🖥 Projetar Slide Atual (Tela Cheia)
+                  </button>
                   <p style={{ marginTop: 14, fontSize: ".75rem", color: "#b0aba2", textAlign: "center", fontStyle: "italic" }}>✎ Clique diretamente no slide para editar qualquer texto</p>
                 </div>
               )}
@@ -1851,6 +2136,7 @@ RESPONDA APENAS COM O JSON.`;
               {activeTab === "biblia" && (
                 <BibleSection
                   userEmail={userEmail}
+                  onProject={(verso) => setProjecao({ referencia: verso.referencia, texto: verso.texto })}
                   onAddVerseToSlides={(verso) => {
                     // Adiciona um novo slide do tipo citação ao final da lista
                     const newSlide = {
