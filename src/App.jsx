@@ -2191,6 +2191,91 @@ RESPONDA APENAS COM O JSON.`;
           --ss-accent-bg-soft: rgba(201,168,76,0.12);
         }
 
+        /* ── OVERRIDES DARK MODE: textos com cor hardcoded #1a2744 ── */
+        [data-theme="dark"] [style*="color: rgb(26, 39, 68)"],
+        [data-theme="dark"] [style*="color:#1a2744"],
+        [data-theme="dark"] [style*="color: #1a2744"] {
+          color: #f5f0e8 !important;
+        }
+        /* Textos médios cinza */
+        [data-theme="dark"] [style*="color: rgb(55, 65, 81)"],
+        [data-theme="dark"] [style*="color:#374151"],
+        [data-theme="dark"] [style*="color: #374151"] {
+          color: #c9c4bc !important;
+        }
+        /* Textos suaves cinza claro */
+        [data-theme="dark"] [style*="color: rgb(155, 150, 144)"],
+        [data-theme="dark"] [style*="color:#9b9690"],
+        [data-theme="dark"] [style*="color: #9b9690"] {
+          color: #8a93a8 !important;
+        }
+        [data-theme="dark"] [style*="color: rgb(176, 171, 162)"],
+        [data-theme="dark"] [style*="color:#b0aba2"],
+        [data-theme="dark"] [style*="color: #b0aba2"] {
+          color: #6d758a !important;
+        }
+        [data-theme="dark"] [style*="color: rgb(139, 134, 128)"],
+        [data-theme="dark"] [style*="color:#8b8680"],
+        [data-theme="dark"] [style*="color: #8b8680"] {
+          color: #8a93a8 !important;
+        }
+        [data-theme="dark"] [style*="color: rgb(192, 187, 181)"],
+        [data-theme="dark"] [style*="color:#c0bbb5"],
+        [data-theme="dark"] [style*="color: #c0bbb5"] {
+          color: #6d758a !important;
+        }
+        /* Backgrounds creme/branco → escuros */
+        [data-theme="dark"] [style*="background: rgb(255, 255, 255)"],
+        [data-theme="dark"] [style*="background:white"],
+        [data-theme="dark"] [style*="background: white"],
+        [data-theme="dark"] [style*="background:#ffffff"],
+        [data-theme="dark"] [style*="background: #ffffff"] {
+          background: #1a2336 !important;
+        }
+        [data-theme="dark"] [style*="background: rgb(249, 247, 243)"],
+        [data-theme="dark"] [style*="background:#f9f7f3"],
+        [data-theme="dark"] [style*="background: #f9f7f3"] {
+          background: #141d2e !important;
+        }
+        [data-theme="dark"] [style*="background: rgb(240, 236, 224)"],
+        [data-theme="dark"] [style*="background:#f0ece0"],
+        [data-theme="dark"] [style*="background: #f0ece0"] {
+          background: rgba(201,168,76,0.12) !important;
+        }
+        [data-theme="dark"] [style*="background: rgb(250, 249, 246)"],
+        [data-theme="dark"] [style*="background:#faf9f6"],
+        [data-theme="dark"] [style*="background: #faf9f6"] {
+          background: #141d2e !important;
+        }
+        /* Bordas claras */
+        [data-theme="dark"] [style*="border-color: rgb(226, 221, 213)"],
+        [data-theme="dark"] [style*="border:1.5px solid #e2ddd5"],
+        [data-theme="dark"] [style*="border: 1.5px solid #e2ddd5"],
+        [data-theme="dark"] [style*="border:1px solid #e2ddd5"] {
+          border-color: #2a3551 !important;
+        }
+        [data-theme="dark"] [style*="1px solid rgb(229, 224, 213)"],
+        [data-theme="dark"] [style*="border:1px solid #e5e0d5"],
+        [data-theme="dark"] [style*="border: 1px solid #e5e0d5"],
+        [data-theme="dark"] [style*="border:1.5px solid #e5e0d5"],
+        [data-theme="dark"] [style*="border: 1.5px solid #e5e0d5"] {
+          border-color: #2a3551 !important;
+        }
+        [data-theme="dark"] [style*="border:1px solid #f0ece0"],
+        [data-theme="dark"] [style*="border-bottom: 1.5px solid rgb(240, 236, 224)"],
+        [data-theme="dark"] [style*="1.5px solid #f0ece0"] {
+          border-color: #243049 !important;
+        }
+        /* Inputs e textareas com background transparente em containers — manter legível */
+        [data-theme="dark"] input[style*="background: transparent"],
+        [data-theme="dark"] textarea[style*="background: transparent"] {
+          color: #f5f0e8 !important;
+        }
+        /* Texto dourado (ss-label) já usa --ss-text via classe, mas inline styles podem usar #1a2744 */
+        [data-theme="dark"] .ss-label { color: var(--ss-text); }
+        /* Tabs ativas */
+        [data-theme="dark"] .ss-tab-active { color: var(--ss-text); }
+
         .ss-input{width:100%;background:var(--ss-input-bg);border:1.5px solid var(--ss-input-border);border-radius:7px;padding:10px 13px;font-family:'Source Sans 3',sans-serif;font-size:.875rem;color:var(--ss-text);transition:border-color .2s,box-shadow .2s;line-height:1.5}
         .ss-input:focus{outline:none;border-color:#c9a84c;box-shadow:0 0 0 3px rgba(201,168,76,.12)}
         textarea.ss-input{resize:vertical}
