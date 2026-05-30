@@ -7,7 +7,6 @@ export default async function handler(req, res) {
   let body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch { return res.status(400).json({ error: "Body inválido." }); } }
 
-  // Valida e-mail
   const email = (body?.user_email || "").trim().toLowerCase();
   const lista = (process.env.ALLOWED_EMAILS || "").split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
   if (lista.length > 0 && !lista.includes(email)) return res.status(401).json({ error: "Acesso não autorizado." });
@@ -15,40 +14,55 @@ export default async function handler(req, res) {
   const { text, voice = "onyx", speed = 1.0 } = body;
   if (!text?.trim()) return res.status(400).json({ error: "Texto não informado." });
 
-  // OpenAI TTS suporta até ~4096 chars por requisição
-  // Texto maior: truncamos com aviso
-  const maxChars = 4000;
-  const textoFinal = text.length > maxChars ? text.slice(0, maxChars) + "..." : text;
+  // ── Divide o texto em pedaços de até 3800 chars, quebrando em fim de frase ──
+  const MAX = 3800;
+  const chunks = [];
+  let restante = text.trim();
+  while (restante.length > 0) {
+    if (restante.length <= MAX) { chunks.push(restante); break; }
+    // procura o último ponto/quebra dentro do limite
+    let corte = restante.lastIndexOf(". ", MAX);
+    if (corte < MAX * 0.5) corte = restante.lastIndexOf(" ", MAX); // se não achar, corta no espaço
+    if (corte <= 0) corte = MAX;
+    chunks.push(restante.slice(0, corte + 1));
+    restante = restante.slice(corte + 1).trim();
+  }
 
   try {
-    const resp = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openaiKey}`,
-      },
-      body: JSON.stringify({
-        model: "tts-1-hd",   // tts-1 (rápido) ou tts-1-hd (qualidade superior)
-        input: textoFinal,
-        voice,               // alloy, echo, fable, onyx, nova, shimmer
-        speed,               // 0.25–4.0
-        response_format: "mp3",
-      }),
-    });
+    const buffers = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const resp = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify({
+          model: "tts-1",   // tts-1 é mais rápido — importante para evitar timeout em textos longos
+          input: chunks[i],
+          voice,
+          speed,
+          response_format: "mp3",
+        }),
+      });
 
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      return res.status(resp.status).json({ error: err?.error?.message || "Erro na OpenAI TTS API" });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        return res.status(resp.status).json({ error: err?.error?.message || `Erro no trecho ${i + 1}` });
+      }
+
+      const buf = Buffer.from(await resp.arrayBuffer());
+      buffers.push(buf);
     }
 
-    // Devolve o MP3 diretamente como buffer
-    const audioBuffer = await resp.arrayBuffer();
-    const b64 = Buffer.from(audioBuffer).toString("base64");
+    // Concatena todos os MP3 (funciona para reprodução sequencial)
+    const audioBuffer = Buffer.concat(buffers);
+    const b64 = audioBuffer.toString("base64");
 
-    console.log(`[AUDIO] Narração gerada para: ${email} — ${textoFinal.length} chars — voz: ${voice}`);
-    return res.status(200).json({ audio: `data:audio/mp3;base64,${b64}`, chars: textoFinal.length });
+    console.log(`[AUDIO] Narração gerada para: ${email} — ${text.length} chars em ${chunks.length} partes — voz: ${voice}`);
+    return res.status(200).json({ audio: `data:audio/mp3;base64,${b64}`, chars: text.length, partes: chunks.length });
 
   } catch (err) {
-    return res.status(500).json({ error: "Erro de rede: " + err.message });
+    return res.status(500).json({ error: "Erro: " + err.message });
   }
 }
