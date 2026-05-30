@@ -2700,16 +2700,19 @@ RESPONDA APENAS COM O JSON.`;
               )}
 
               {/* ── TAB 4: Audio ── */}
-              {activeTab === "audio" && (
-                <AudioSection
-                  data={data}
-                  input={input}
-                  userEmail={userEmail}
-                  setGlobalAudio={setGlobalAudio}
-                  setGlobalAudioPlaying={setGlobalAudioPlaying}
-                  globalAudioRef={globalAudioRef}
-                />
-              )}
+              {/* ── TAB 4: Audio (sempre montado para não perder estado) ── */}
+              <div style={{ display: activeTab === "audio" ? "block" : "none" }}>
+                {data && (
+                  <AudioSection
+                    data={data}
+                    input={input}
+                    userEmail={userEmail}
+                    setGlobalAudio={setGlobalAudio}
+                    setGlobalAudioPlaying={setGlobalAudioPlaying}
+                    globalAudioRef={globalAudioRef}
+                  />
+                )}
+              </div>
 
               {/* ── TAB 5: Bible ── */}
               {activeTab === "biblia" && (
@@ -2735,14 +2738,14 @@ RESPONDA APENAS COM O JSON.`;
                 />
               )}
 
-              {/* ── TAB 6: Videos ── */}
-              {activeTab === "videos" && (
+              {/* ── TAB 6: Videos (sempre montado para não perder estado) ── */}
+              <div style={{ display: activeTab === "videos" ? "block" : "none" }}>
                 <VideosSection
                   tema={input.tema}
                   referencia={input.referencia}
                   userEmail={userEmail}
                 />
-              )}
+              </div>
             </div>
           )}
         </section>
