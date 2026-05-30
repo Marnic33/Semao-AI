@@ -525,6 +525,272 @@ Varie os estilos: inclua temas doutrinários, narrativos, práticos e de apelo. 
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   FULLSCREEN PRESENTATION — navega por todos os slides em tela cheia
+───────────────────────────────────────────────────────────────────────────── */
+function FullscreenPresentation({ slides, theme, slideImages, startIndex = 0, onClose }) {
+  const [idx, setIdx] = useState(startIndex);
+  const [showControls, setShowControls] = useState(true);
+  const t = THEMES[theme];
+  const slide = slides[idx];
+  const bg = slideImages?.[idx];
+
+  // Auto-hide dos controles
+  useEffect(() => {
+    setShowControls(true);
+    const timer = setTimeout(() => setShowControls(false), 3000);
+    return () => clearTimeout(timer);
+  }, [idx]);
+
+  useEffect(() => {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    return () => {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, []);
+
+  const next = () => setIdx(i => Math.min(slides.length - 1, i + 1));
+  const prev = () => setIdx(i => Math.max(0, i - 1));
+
+  // Teclas
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); next(); }
+      else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); prev(); }
+      else if (e.key === "Home") setIdx(0);
+      else if (e.key === "End") setIdx(slides.length - 1);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [slides.length, onClose]);
+
+  // Toque para navegar (mobile): metade esquerda volta, metade direita avança
+  const handleTap = (e) => {
+    setShowControls(true);
+    setTimeout(() => setShowControls(false), 3000);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    if (x < rect.width * 0.35) prev();
+    else if (x > rect.width * 0.65) next();
+  };
+
+  if (!slide) return null;
+  const isModerno = theme === "moderno";
+
+  return (
+    <div
+      onClick={handleTap}
+      onMouseMove={() => { setShowControls(true); }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: bg ? "#000" : t.slideBg,
+        cursor: showControls ? "pointer" : "none",
+        overflow: "hidden",
+      }}
+    >
+      {/* Imagem de fundo */}
+      {bg && (
+        <>
+          <img src={bg} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg,rgba(0,0,0,0.65) 0%,rgba(0,0,0,0.45) 100%)" }} />
+        </>
+      )}
+
+      {!bg && t.glow && <div style={{ position: "absolute", inset: 0, background: t.glow }} />}
+      {!bg && (theme === "tradicional" || theme === "natureza" || theme === "purpura") && (
+        <div style={{ position: "absolute", inset: "2vw", border: t.borderDecor, borderRadius: "6px", pointerEvents: "none" }} />
+      )}
+
+      {/* Conteúdo do slide */}
+      <div style={{
+        position: "absolute", inset: 0, zIndex: 2,
+        display: "flex", flexDirection: "column",
+        alignItems: isModerno ? "flex-start" : "center",
+        justifyContent: "center",
+        padding: "8vh 6vw",
+        textAlign: isModerno ? "left" : "center",
+      }}>
+        {/* Label */}
+        <div style={{
+          fontFamily: t.bodyFont,
+          fontSize: "clamp(11px,1.4vw,18px)",
+          letterSpacing: "6px",
+          textTransform: "uppercase",
+          color: bg ? "#c9a84c" : t.accentColor,
+          marginBottom: "3vh",
+          opacity: 0.85,
+        }}>
+          {slide.tipo === "titulo" ? "SERMÃO" : slide.tipo === "escritura" ? "ESCRITURA" : slide.tipo === "ponto" ? "PONTO PRINCIPAL" : slide.tipo === "citacao" ? "PALAVRA DE APOIO" : "CONCLUSÃO"}
+        </div>
+
+        {/* Título */}
+        <div style={{
+          fontFamily: t.titleFont,
+          fontSize: "clamp(32px,5.5vw,80px)",
+          fontWeight: t.titleWeight,
+          color: bg ? "#ffffff" : t.titleColor,
+          lineHeight: 1.15,
+          marginBottom: "3vh",
+          maxWidth: "90vw",
+          textShadow: bg ? "0 3px 20px rgba(0,0,0,0.7)" : "none",
+        }}>
+          {slide.titulo.replace("📖 ", "")}
+        </div>
+
+        {/* Conteúdo */}
+        {slide.conteudo && (
+          <div style={{
+            fontFamily: t.titleFont,
+            fontSize: "clamp(18px,2.8vw,40px)",
+            fontWeight: t.bodyWeight,
+            fontStyle: t.bodyStyle,
+            color: bg ? "rgba(255,255,255,0.92)" : t.contentColor,
+            lineHeight: 1.55,
+            maxWidth: isModerno ? "90vw" : "75vw",
+            textShadow: bg ? "0 2px 12px rgba(0,0,0,0.6)" : "none",
+          }}>
+            {slide.conteudo}
+          </div>
+        )}
+
+        {/* Subtexto */}
+        {slide.subtexto && (
+          <div style={{
+            fontFamily: t.bodyFont,
+            fontSize: "clamp(11px,1.3vw,18px)",
+            color: bg ? "rgba(255,255,255,0.7)" : t.subColor,
+            marginTop: "3vh",
+            letterSpacing: "2px",
+          }}>
+            {slide.subtexto}
+          </div>
+        )}
+      </div>
+
+      {/* ──── CONTROLES ──── */}
+      {/* Indicador de slide */}
+      <div style={{
+        position: "absolute",
+        top: "3vh", left: "3vw",
+        zIndex: 3,
+        opacity: showControls ? 1 : 0,
+        transition: "opacity .3s ease",
+        background: "rgba(0,0,0,0.5)",
+        padding: "8px 16px",
+        borderRadius: 24,
+        backdropFilter: "blur(8px)",
+        fontFamily: t.bodyFont,
+        fontSize: "clamp(11px,1.3vw,15px)",
+        color: "#c9a84c",
+        fontWeight: 700,
+        letterSpacing: "2px",
+      }}>
+        {idx + 1} / {slides.length}
+      </div>
+
+      {/* Botão sair */}
+      <button onClick={(e) => { e.stopPropagation(); onClose(); }}
+        style={{
+          position: "absolute",
+          top: "3vh", right: "3vw",
+          zIndex: 3,
+          opacity: showControls ? 1 : 0,
+          transition: "opacity .3s ease",
+          background: "rgba(0,0,0,0.5)",
+          border: "1px solid rgba(201,168,76,0.4)",
+          color: "#c9a84c",
+          borderRadius: 24,
+          padding: "8px 18px",
+          fontSize: "clamp(11px,1.3vw,14px)",
+          cursor: "pointer",
+          fontFamily: t.bodyFont,
+          fontWeight: 600,
+          backdropFilter: "blur(8px)",
+        }}>
+        ✕ Sair (ESC)
+      </button>
+
+      {/* Setas laterais */}
+      {idx > 0 && (
+        <button onClick={(e) => { e.stopPropagation(); prev(); }}
+          style={{
+            position: "absolute",
+            left: "2vw", top: "50%", transform: "translateY(-50%)",
+            zIndex: 3,
+            opacity: showControls ? 0.7 : 0,
+            transition: "opacity .3s ease",
+            background: "rgba(0,0,0,0.5)",
+            border: "1px solid rgba(201,168,76,0.3)",
+            color: "#c9a84c",
+            borderRadius: "50%",
+            width: "clamp(40px,5vw,60px)",
+            height: "clamp(40px,5vw,60px)",
+            fontSize: "clamp(16px,2vw,24px)",
+            cursor: "pointer",
+            backdropFilter: "blur(8px)",
+          }}>
+          ←
+        </button>
+      )}
+      {idx < slides.length - 1 && (
+        <button onClick={(e) => { e.stopPropagation(); next(); }}
+          style={{
+            position: "absolute",
+            right: "2vw", top: "50%", transform: "translateY(-50%)",
+            zIndex: 3,
+            opacity: showControls ? 0.7 : 0,
+            transition: "opacity .3s ease",
+            background: "rgba(0,0,0,0.5)",
+            border: "1px solid rgba(201,168,76,0.3)",
+            color: "#c9a84c",
+            borderRadius: "50%",
+            width: "clamp(40px,5vw,60px)",
+            height: "clamp(40px,5vw,60px)",
+            fontSize: "clamp(16px,2vw,24px)",
+            cursor: "pointer",
+            backdropFilter: "blur(8px)",
+          }}>
+          →
+        </button>
+      )}
+
+      {/* Barra de progresso */}
+      <div style={{
+        position: "absolute",
+        bottom: 0, left: 0, right: 0,
+        height: 4,
+        background: "rgba(255,255,255,0.1)",
+        zIndex: 3,
+      }}>
+        <div style={{
+          width: `${((idx + 1) / slides.length) * 100}%`,
+          height: "100%",
+          background: t.accentColor,
+          transition: "width .4s ease",
+        }} />
+      </div>
+
+      {/* Dica de uso (apenas no primeiro slide) */}
+      {idx === 0 && showControls && (
+        <div style={{
+          position: "absolute",
+          bottom: "4vh", left: 0, right: 0,
+          textAlign: "center",
+          fontFamily: t.bodyFont,
+          fontSize: "clamp(10px,1.1vw,13px)",
+          color: bg ? "rgba(255,255,255,0.6)" : t.subColor,
+          opacity: 0.7,
+          zIndex: 3,
+        }}>
+          ← → para navegar · ESC para sair · Toque nas laterais no celular
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    FULLSCREEN PROJECTION — projeta versículo/slide em tela cheia (telão)
 ───────────────────────────────────────────────────────────────────────────── */
 function FullscreenProjection({ referencia, texto, theme = "tradicional", onClose }) {
@@ -1778,6 +2044,16 @@ RESPONDA APENAS COM O JSON.`;
 
   const [pptxLoading, setPptxLoading] = useState(false);
   const [projecao, setProjecao] = useState(null); // { referencia, texto }
+  const [apresentacao, setApresentacao] = useState(null); // { startIndex }
+  const [darkMode, setDarkMode] = useState(() => {
+    try { return localStorage.getItem("ss_darkmode") === "1"; } catch { return false; }
+  });
+
+  // Aplica modo escuro no HTML
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+    try { localStorage.setItem("ss_darkmode", darkMode ? "1" : "0"); } catch {}
+  }, [darkMode]);
 
   // ── Player de áudio global (sobrevive a trocas de aba) ──
   const [globalAudio, setGlobalAudio] = useState(null); // { src, label, type } | null
@@ -1813,10 +2089,8 @@ RESPONDA APENAS COM O JSON.`;
     setImagesLoading(true);
     setSlideImages({});
 
-    // Gera imagens apenas para slides principais (título, pontos, conclusão)
-    const targetSlides = currentSlides
-      .map((s, i) => ({ ...s, index: i }))
-      .filter(s => ["titulo", "ponto", "conclusao"].includes(s.tipo));
+    // Gera imagens para TODOS os slides
+    const targetSlides = currentSlides.map((s, i) => ({ ...s, index: i }));
 
     setImagesProgress({ current: 0, total: targetSlides.length, label: "Iniciando..." });
 
@@ -1876,38 +2150,76 @@ RESPONDA APENAS COM O JSON.`;
   const updatePonto = (index, field, value) => setEditedData(d => { if (!d) return d; const pts = d.pontosPrincipais.map((p, i) => i === index ? { ...p, [field]: value } : p); return { ...d, pontosPrincipais: pts }; });
 
   return (
-    <div style={{ fontFamily: "'Source Sans 3', sans-serif", background: "#efebe2", minHeight: "100vh", color: "#1a2744" }}>
+    <div style={{ fontFamily: "'Source Sans 3', sans-serif", background: "var(--ss-bg)", minHeight: "100vh", color: "var(--ss-text)" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Source+Sans+3:wght@300;400;600;700&family=DM+Sans:wght@400;600;700&family=Montserrat:wght@700;900&display=swap');
         *{box-sizing:border-box}
-        .ss-input{width:100%;background:white;border:1.5px solid #e2ddd5;border-radius:7px;padding:10px 13px;font-family:'Source Sans 3',sans-serif;font-size:.875rem;color:#1a2744;transition:border-color .2s,box-shadow .2s;line-height:1.5}
+
+        /* ── TEMA CLARO (padrão) ── */
+        :root, [data-theme="light"] {
+          --ss-bg: #efebe2;
+          --ss-card-bg: #ffffff;
+          --ss-card-bg-soft: #f9f7f3;
+          --ss-card-border: #e5e0d5;
+          --ss-input-bg: #ffffff;
+          --ss-input-border: #e2ddd5;
+          --ss-text: #1a2744;
+          --ss-text-muted: #9b9690;
+          --ss-text-soft: #b0aba2;
+          --ss-text-medium: #374151;
+          --ss-divider: #f0ece0;
+          --ss-divider-soft: #ede8e0;
+          --ss-tab-bg: #faf9f6;
+          --ss-accent-bg-soft: #f0ece0;
+        }
+
+        /* ── TEMA ESCURO ── */
+        [data-theme="dark"] {
+          --ss-bg: #0d1320;
+          --ss-card-bg: #1a2336;
+          --ss-card-bg-soft: #141d2e;
+          --ss-card-border: #2a3551;
+          --ss-input-bg: #141d2e;
+          --ss-input-border: #2a3551;
+          --ss-text: #f5f0e8;
+          --ss-text-muted: #8a93a8;
+          --ss-text-soft: #6d758a;
+          --ss-text-medium: #c9c4bc;
+          --ss-divider: #243049;
+          --ss-divider-soft: #1f2a40;
+          --ss-tab-bg: #141d2e;
+          --ss-accent-bg-soft: rgba(201,168,76,0.12);
+        }
+
+        .ss-input{width:100%;background:var(--ss-input-bg);border:1.5px solid var(--ss-input-border);border-radius:7px;padding:10px 13px;font-family:'Source Sans 3',sans-serif;font-size:.875rem;color:var(--ss-text);transition:border-color .2s,box-shadow .2s;line-height:1.5}
         .ss-input:focus{outline:none;border-color:#c9a84c;box-shadow:0 0 0 3px rgba(201,168,76,.12)}
         textarea.ss-input{resize:vertical}
         select.ss-input{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b8680' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
-        .ss-label{display:block;font-size:.72rem;font-weight:700;color:#1a2744;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-        .ss-card{background:white;border-radius:14px;box-shadow:0 2px 24px rgba(26,39,68,.07)}
+        .ss-label{display:block;font-size:.72rem;font-weight:700;color:var(--ss-text);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+        .ss-card{background:var(--ss-card-bg);border-radius:14px;box-shadow:0 2px 24px rgba(26,39,68,.07)}
+        [data-theme="dark"] .ss-card{box-shadow:0 2px 24px rgba(0,0,0,0.35)}
         .ss-btn-primary{background:#1a2744;color:#f5f0e8;border:none;cursor:pointer;font-family:'Source Sans 3',sans-serif;font-weight:700;transition:all .2s;border-radius:8px}
         .ss-btn-primary:hover:not(:disabled){background:#22305c;transform:translateY(-1px);box-shadow:0 5px 16px rgba(26,39,68,.3)}
         .ss-btn-primary:disabled{opacity:.65;cursor:not-allowed}
         .ss-btn-gold{background:#c9a84c;color:#1a2744;border:none;cursor:pointer;font-family:'Source Sans 3',sans-serif;font-weight:700;transition:all .2s;border-radius:8px}
         .ss-btn-gold:hover{background:#d4b55e;transform:translateY(-1px);box-shadow:0 5px 14px rgba(201,168,76,.35)}
-        .ss-btn-outline{background:white;color:#1a2744;border:1.5px solid #e2ddd5;cursor:pointer;font-family:'Source Sans 3',sans-serif;font-weight:600;transition:all .2s;border-radius:8px}
-        .ss-btn-outline:hover:not(:disabled){border-color:#1a2744;background:#f9f7f3}
+        .ss-btn-outline{background:var(--ss-card-bg);color:var(--ss-text);border:1.5px solid var(--ss-input-border);cursor:pointer;font-family:'Source Sans 3',sans-serif;font-weight:600;transition:all .2s;border-radius:8px}
+        .ss-btn-outline:hover:not(:disabled){border-color:#c9a84c;background:var(--ss-card-bg-soft)}
         .ss-btn-outline:disabled{opacity:.4;cursor:not-allowed}
         .ss-tab{padding:14px 20px;font-size:.82rem;font-weight:700;cursor:pointer;border:none;background:none;border-bottom:2.5px solid transparent;transition:all .18s;white-space:nowrap}
-        .ss-tab:hover{color:#1a2744}
-        .ss-tab-active{border-color:#c9a84c;color:#1a2744}
-        .ss-tab-inactive{color:#9b9690}
-        .ss-editable{width:100%;background:#f9f7f3;border:1.5px solid #ede8e0;border-radius:6px;padding:12px 15px;font-family:'Source Sans 3',sans-serif;font-size:.88rem;color:#374151;line-height:1.8;resize:vertical;transition:border-color .2s}
-        .ss-editable:focus{outline:none;border-color:#c9a84c;background:white;box-shadow:0 0 0 3px rgba(201,168,76,.1)}
+        .ss-tab:hover{color:var(--ss-text)}
+        .ss-tab-active{border-color:#c9a84c;color:var(--ss-text)}
+        .ss-tab-inactive{color:var(--ss-text-muted)}
+        .ss-editable{width:100%;background:var(--ss-card-bg-soft);border:1.5px solid var(--ss-divider-soft);border-radius:6px;padding:12px 15px;font-family:'Source Sans 3',sans-serif;font-size:.88rem;color:var(--ss-text-medium);line-height:1.8;resize:vertical;transition:border-color .2s}
+        .ss-editable:focus{outline:none;border-color:#c9a84c;background:var(--ss-card-bg);box-shadow:0 0 0 3px rgba(201,168,76,.1)}
         .pulse-dot{animation:pulseDot 1.4s ease-in-out infinite}
         @keyframes pulseDot{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
         .shimmer{animation:shimmer 1.6s ease-in-out infinite}
         @keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.9}}
         .ss-dot-nav{width:8px;height:8px;border-radius:50%;border:none;cursor:pointer;transition:all .2s;padding:0}
         .ss-theme-pill{padding:6px 14px;border-radius:20px;font-size:.75rem;font-weight:700;cursor:pointer;border:1.5px solid;transition:all .2s}
-        .quick-ex-btn{width:100%;text-align:left;background:none;border:1.5px solid transparent;border-radius:7px;padding:8px 11px;cursor:pointer;font-size:.8rem;color:#8b8680;transition:all .15s;font-family:'Source Sans 3',sans-serif}
-        .quick-ex-btn:hover{background:#f9f7f3;border-color:#e5e0d5;color:#1a2744}
+        .quick-ex-btn{width:100%;text-align:left;background:none;border:1.5px solid transparent;border-radius:7px;padding:8px 11px;cursor:pointer;font-size:.8rem;color:var(--ss-text-muted);transition:all .15s;font-family:'Source Sans 3',sans-serif}
+        .quick-ex-btn:hover{background:var(--ss-card-bg-soft);border-color:var(--ss-card-border);color:var(--ss-text)}
       `}</style>
 
       {/* ── MODALS ── */}
@@ -1915,6 +2227,7 @@ RESPONDA APENAS COM O JSON.`;
       {showShare && data && <ShareModal data={data} input={input} onClose={() => setShowShare(false)} />}
       {showSuggestions && <SuggestionModal userEmail={userEmail} onSelect={s => { setInput(s); setShowSuggestions(false); }} onClose={() => setShowSuggestions(false)} />}
       {projecao && <FullscreenProjection referencia={projecao.referencia} texto={projecao.texto} theme={slideTheme} onClose={() => setProjecao(null)} />}
+      {apresentacao && <FullscreenPresentation slides={currentSlides} theme={slideTheme} slideImages={slideImages} startIndex={apresentacao.startIndex || 0} onClose={() => setApresentacao(null)} />}
 
       {/* ─── ELEMENTO DE ÁUDIO GLOBAL (invisível) ─── */}
       <audio
@@ -1977,6 +2290,23 @@ RESPONDA APENAS COM O JSON.`;
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {/* Dark mode toggle */}
+            <button
+              onClick={() => setDarkMode(d => !d)}
+              title={darkMode ? "Modo claro" : "Modo escuro"}
+              style={{
+                background: "rgba(201,168,76,0.1)",
+                border: "1px solid rgba(201,168,76,0.2)",
+                color: "#c9a84c",
+                borderRadius: "50%",
+                width: 32, height: 32,
+                cursor: "pointer",
+                fontSize: ".95rem",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all .2s",
+              }}>
+              {darkMode ? "☀" : "🌙"}
+            </button>
             {/* User badge */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)", borderRadius: 20, padding: "5px 12px" }}>
               <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#c9a84c", display: "flex", alignItems: "center", justifyContent: "center", fontSize: ".65rem", fontWeight: 700, color: "#1a2744", flexShrink: 0 }}>
@@ -2273,13 +2603,13 @@ RESPONDA APENAS COM O JSON.`;
                     {currentSlides.map((slide, i) => <SlideThumb key={i} slide={slide} theme={slideTheme} active={i === slideIndex} onClick={() => setSlideIndex(i)} />)}
                   </div>
                   <button
-                    onClick={() => {
-                      const s = currentSlides[slideIndex];
-                      setProjecao({ referencia: s.titulo.replace("📖 ", ""), texto: s.conteudo.replace(/^"|"$/g, "") });
-                    }}
-                    style={{ width: "100%", marginTop: 16, background: "linear-gradient(135deg,#c9a84c,#d4b55e)", color: "#1a2744", border: "none", borderRadius: 9, padding: "13px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                    🖥 Projetar Slide Atual (Tela Cheia)
+                    onClick={() => setApresentacao({ startIndex: slideIndex })}
+                    style={{ width: "100%", marginTop: 16, background: "linear-gradient(135deg,#c9a84c,#d4b55e)", color: "#1a2744", border: "none", borderRadius: 9, padding: "13px", fontWeight: 700, fontSize: ".85rem", cursor: "pointer", fontFamily: "'Source Sans 3',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "0 4px 14px rgba(201,168,76,0.3)" }}>
+                    🖥 Iniciar Apresentação (Tela Cheia)
                   </button>
+                  <p style={{ marginTop: 8, fontSize: ".72rem", color: "var(--ss-text-muted, #b0aba2)", textAlign: "center", fontStyle: "italic" }}>
+                    Navegue com ← → ou clique nas laterais · ESC para sair
+                  </p>
                   <p style={{ marginTop: 14, fontSize: ".75rem", color: "#b0aba2", textAlign: "center", fontStyle: "italic" }}>✎ Clique diretamente no slide para editar qualquer texto</p>
                 </div>
               )}
